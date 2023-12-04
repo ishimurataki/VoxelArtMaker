@@ -1,11 +1,27 @@
+html {
+    min-height: 100%;
+    height: 100%;
+}
+
 body,
 canvas {
     font-family: 'Omega Centauri';
     text-align: center;
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
     margin: 0;
     overflow: hidden;
     user-select: none;
     display: block;
+    flex: 2;
+}
+
+.flex-container {
+    display: flex;
+    height: 100%;
+}
+
+#editorPane {
+    flex: 0 0 18em;
+    background-color: rosybrown;
 }
