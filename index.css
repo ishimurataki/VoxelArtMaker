@@ -1,0 +1,11 @@
+body,
+canvas {
+    font-family: 'Omega Centauri';
+    text-align: center;
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    overflow: hidden;
+    user-select: none;
+    display: block;
+}
