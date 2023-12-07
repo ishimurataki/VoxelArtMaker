@@ -16,10 +16,10 @@ export default class Grid extends Mesh {
         let sideLength = 1 / divisionFactor;
         for (let i = 0; i <= divisionFactor; i++) {
             let delta = i / divisionFactor;
-            this.vertices.push(0.0, -sideLength, delta);
-            this.vertices.push(1.0, -sideLength, delta);
-            this.vertices.push(delta, -sideLength, 1.0);
-            this.vertices.push(delta, -sideLength, 0.0);
+            this.vertices.push(0.0, sideLength, delta);
+            this.vertices.push(1.0, sideLength, delta);
+            this.vertices.push(delta, sideLength, 1.0);
+            this.vertices.push(delta, sideLength, 0.0);
         }
         this.positionBuffer = glContext.createBuffer();
         glContext.bindBuffer(glContext.ARRAY_BUFFER, this.positionBuffer);

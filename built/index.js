@@ -9,7 +9,7 @@ let CLIENT_HEIGHT = 0;
 let CANVAS;
 let CAMERA = new PolarCamera(0, 0);
 let VIEW_PROJECTION_INVERSE = mat4.create();
-let DIVISION_FACTOR = 64;
+let DIVISION_FACTOR = 16;
 let SIDE_LENGTH = 1 / DIVISION_FACTOR;
 let UPPER_LEFT = vec2.fromValues(-0.5, -0.5);
 let SCENE;
@@ -27,35 +27,55 @@ const registerControls = () => {
     let cubePlacedInCurrentPos = false;
     let xIndex = -1;
     let zIndex = -1;
+    let movementSpeed = 0.01;
+    let zoomSpeed = -0.008;
     const moveHandler = (e) => {
-        const rect = CANVAS.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        const clipX = x / rect.width * 2 - 1;
-        const clipY = y / rect.height * -2 + 1;
-        const start = vec3.transformMat4(vec3.create(), vec3.fromValues(clipX, clipY, -1), VIEW_PROJECTION_INVERSE);
-        const end = vec3.transformMat4(vec3.create(), vec3.fromValues(clipX, clipY, 1), VIEW_PROJECTION_INVERSE);
-        const v = vec3.sub(vec3.create(), end, start);
-        const t = -start[1] / v[1];
-        let cursorXWorld = start[0] + t * v[0];
-        let cursorZWorld = start[2] + t * v[2];
-        let xIndexNow = Math.floor((cursorXWorld - UPPER_LEFT[0]) / SIDE_LENGTH);
-        let zIndexNow = Math.floor((cursorZWorld - UPPER_LEFT[1]) / SIDE_LENGTH);
-        if (xIndexNow != xIndex || zIndexNow != zIndex) {
-            RENDER_HOVER_CUBE = SCENE.setHoverCubePosition(xIndexNow, zIndexNow);
-            cubePlacedInCurrentPos = false;
-            xIndex = xIndexNow;
-            zIndex = zIndexNow;
+        if (MODE == Mode.Editor) {
+            const rect = CANVAS.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const clipX = x / rect.width * 2 - 1;
+            const clipY = y / rect.height * -2 + 1;
+            const start = vec3.transformMat4(vec3.create(), vec3.fromValues(clipX, clipY, -1), VIEW_PROJECTION_INVERSE);
+            const end = vec3.transformMat4(vec3.create(), vec3.fromValues(clipX, clipY, 1), VIEW_PROJECTION_INVERSE);
+            const v = vec3.sub(vec3.create(), end, start);
+            const t = -start[1] / v[1];
+            let cursorXWorld = start[0] + t * v[0];
+            let cursorZWorld = start[2] + t * v[2];
+            let xIndexNow = Math.floor((cursorXWorld - UPPER_LEFT[0]) / SIDE_LENGTH);
+            let zIndexNow = Math.floor((cursorZWorld - UPPER_LEFT[1]) / SIDE_LENGTH);
+            if (xIndexNow != xIndex || zIndexNow != zIndex) {
+                RENDER_HOVER_CUBE = SCENE.setHoverCubePosition(xIndexNow, zIndexNow);
+                cubePlacedInCurrentPos = false;
+                xIndex = xIndexNow;
+                zIndex = zIndexNow;
+            }
+            if (mouseDown && !cubePlacedInCurrentPos) {
+                if (shiftDown) {
+                    RENDER_HOVER_CUBE = false;
+                    SCENE.deleteCube(xIndex, zIndex);
+                }
+                else {
+                    SCENE.addCube(xIndex, zIndex);
+                }
+                cubePlacedInCurrentPos = true;
+            }
         }
-        if (mouseDown && !cubePlacedInCurrentPos) {
-            if (shiftDown) {
-                RENDER_HOVER_CUBE = false;
-                SCENE.deleteCube(xIndex, zIndex);
+        else if (MODE = Mode.Viewer) {
+            if (mouseDown) {
+                console.log("MOVING CAMERA");
+                let xMove = e.movementX * movementSpeed;
+                let yMove = e.movementY * movementSpeed;
+                CAMERA.rotateTheta(xMove);
+                CAMERA.rotatePhi(yMove);
             }
-            else {
-                SCENE.addCube(xIndex, zIndex);
-            }
-            cubePlacedInCurrentPos = true;
+        }
+    };
+    const mousewheelHandler = (e) => {
+        if (MODE == Mode.Viewer) {
+            e.preventDefault();
+            let zoom = e.deltaY * zoomSpeed;
+            CAMERA.zoom(zoom);
         }
     };
     const clickHandler = (e) => {
@@ -78,21 +98,22 @@ const registerControls = () => {
             case "ShiftLeft":
                 shiftDown = true;
                 break;
-            case "Space":
-                console.log("Toggling mode");
-                if (MODE == Mode.Editor) {
-                    SCENE.createCubeSpace();
-                    MODE = Mode.Viewer;
-                }
-                else {
-                    MODE = Mode.Editor;
-                }
         }
     };
     const keyUpHandler = (e) => {
         switch (e.code) {
             case "ShiftLeft":
                 shiftDown = false;
+                break;
+            case "Space":
+                console.log("Toggling mode");
+                if (MODE == Mode.Editor) {
+                    SCENE.cubeSpace.populateBuffers();
+                    MODE = Mode.Viewer;
+                }
+                else {
+                    MODE = Mode.Editor;
+                }
         }
     };
     const colorisPickHandler = (e) => {
@@ -107,6 +128,7 @@ const registerControls = () => {
     CANVAS.addEventListener('click', clickHandler, false);
     CANVAS.addEventListener('mousedown', mouseDownHandler, false);
     CANVAS.addEventListener('mouseup', mouseUpHandler, false);
+    CANVAS.addEventListener('wheel', mousewheelHandler, false);
     document.addEventListener('keydown', keyDownHandler, false);
     document.addEventListener('keyup', keyUpHandler, false);
     document.addEventListener('coloris:pick', colorisPickHandler);
@@ -146,7 +168,8 @@ function main() {
                 projectionMatrix: gl.getUniformLocation(flatShaderProgram, 'uProjectionMatrix'),
                 modelViewMatrix: gl.getUniformLocation(flatShaderProgram, 'uModelViewMatrix'),
                 modelMatrix: gl.getUniformLocation(flatShaderProgram, 'uModelMatrix'),
-                color: gl.getUniformLocation(flatShaderProgram, 'uColor')
+                color: gl.getUniformLocation(flatShaderProgram, 'uColor'),
+                useUniformColor: gl.getUniformLocation(flatShaderProgram, 'uUseUniformColor')
             }
         }
     };
@@ -186,7 +209,13 @@ function main() {
         gl.clearColor(0.15, 0.15, 0.15, 1.0);
         gl.clearDepth(1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        let projectionMatrix = CAMERA.getProjMatrix();
+        let modelViewMatrix = CAMERA.getViewMatrix();
+        mat4.invert(VIEW_PROJECTION_INVERSE, CAMERA.getViewProj());
+        gl.uniformMatrix4fv(programInfo.flatShader.uniformLocations.projectionMatrix, false, projectionMatrix);
+        gl.uniformMatrix4fv(programInfo.flatShader.uniformLocations.modelViewMatrix, false, modelViewMatrix);
         if (MODE == Mode.Editor) {
+            gl.uniform1i(programInfo.flatShader.uniformLocations.useUniformColor, 1);
             // Draw cubes
             let firstCube = true;
             for (let cube of SCENE.cubeLayer.values()) {
@@ -220,13 +249,17 @@ function main() {
             gl.drawArrays(SCENE.grid.mesh.drawingMode, 0, SCENE.grid.mesh.vertices.length / 3);
         }
         else if (MODE == Mode.Viewer) {
+            gl.uniform1i(programInfo.flatShader.uniformLocations.useUniformColor, 0);
             // Draw cube space
-            gl.bindBuffer(gl.ARRAY_BUFFER, SCENE.cubeSpacePositionBuffer);
+            gl.bindBuffer(gl.ARRAY_BUFFER, SCENE.cubeSpace.cubeSpacePositionBuffer);
             gl.vertexAttribPointer(programInfo.flatShader.attribLocations.vertexPosition, 3, gl.FLOAT, false, 0, 0);
             gl.enableVertexAttribArray(programInfo.flatShader.attribLocations.vertexPosition);
-            gl.uniform3fv(programInfo.flatShader.uniformLocations.color, vec3.fromValues(1.0, 0.0, 0.0));
+            gl.bindBuffer(gl.ARRAY_BUFFER, SCENE.cubeSpace.cubeSpaceColorBuffer);
+            gl.vertexAttribPointer(programInfo.flatShader.attribLocations.vertexColor, 3, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(programInfo.flatShader.attribLocations.vertexColor);
             gl.uniformMatrix4fv(programInfo.flatShader.uniformLocations.modelMatrix, false, mat4.create());
-            gl.drawArrays(gl.TRIANGLES, 0, SCENE.cubeSpaceNumberOfVertices / 3);
+            gl.drawArrays(gl.TRIANGLES, 0, SCENE.cubeSpace.cubeSpaceNumberOfVertices);
+            gl.disableVertexAttribArray(programInfo.flatShader.attribLocations.vertexColor);
         }
     }
 }

@@ -6,7 +6,7 @@ export default class PolarCamera {
         this.farClip = 100;
         this.eye = vec3.fromValues(0.0, 1.0, 0.0);
         this.ref = vec3.fromValues(0.0, 0.0, 0.0);
-        this.up = vec3.fromValues(0.0, 0.0, -1.0);
+        this.up = vec3.fromValues(0.0, 1.0, 0.0);
         this.theta = 0; // theta ranges from 0 to 2pi
         this.phi = 0.5 * Math.PI; // phi ranges from 0 to pi
         this.r = 1.5;

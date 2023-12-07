@@ -9,7 +9,7 @@ export default class PolarCamera {
 
     eye: vec3 = vec3.fromValues(0.0, 1.0, 0.0);
     ref: vec3 = vec3.fromValues(0.0, 0.0, 0.0);
-    up: vec3 = vec3.fromValues(0.0, 0.0, -1.0);
+    up: vec3 = vec3.fromValues(0.0, 1.0, 0.0);
 
     theta: number = 0;                // theta ranges from 0 to 2pi
     phi: number = 0.5 * Math.PI;   // phi ranges from 0 to pi

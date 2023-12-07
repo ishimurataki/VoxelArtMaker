@@ -2,6 +2,7 @@ import Renderable from "./renderable.js";
 import Mesh from "./mesh.js";
 import Grid from "./grid.js";
 import Cube from "./cube.js";
+import CubeSpace from "./cube_space.js";
 
 import { vec2, vec3, mat4 } from "../gl-matrix/index.js";
 
@@ -10,11 +11,8 @@ export default class Scene {
     cubeLayer: Map<string, Renderable>;
     hoverCube: Renderable;
     hoverCubeColor: ReadonlyVec3;
+    cubeSpace: CubeSpace;
 
-    cubeSpace: (vec3 | undefined)[];
-    cubeSpacePositionBuffer: WebGLBuffer | null;
-    cubeSpaceColorBuffer: WebGLBuffer | null;
-    cubeSpaceNumberOfVertices: number = 0;
     gl: WebGLRenderingContext;
 
     private gridMesh: Mesh;
@@ -39,8 +37,7 @@ export default class Scene {
         this.hoverCube = new Renderable(this.cubeMesh, this.hoverCubeColor, mat4.create());
         this.setHoverCubePosition(0, 0);
 
-        this.cubeSpace = new Array<vec3>(Math.pow(divisionFactor, 3));
-        this.cubeSpace.fill(undefined);
+        this.cubeSpace = new CubeSpace(gl, this.divisionFactor, this.upperLeft);
 
         this.gl = gl;
     }
@@ -54,49 +51,11 @@ export default class Scene {
     }
 
     private getCubeInSpace(x: number, y: number, z: number): vec3 | undefined {
-        return this.cubeSpace[this.getCubeInSpaceIndex(x, y, z)];
+        return this.cubeSpace.cubeSpace[this.getCubeInSpaceIndex(x, y, z)];
     }
 
     private setCubeInSpace(x: number, y: number, z: number, color: vec3): void {
-        this.cubeSpace[this.getCubeInSpaceIndex(x, y, z)] = color;
-    }
-
-    createCubeSpace() {
-        let vertices = [];
-        let colors = [];
-        let xStart = this.upperLeft[0];
-        let zStart = this.upperLeft[1];
-        // bottom plane
-        for (let x = 0; x < this.divisionFactor; x++) {
-            let xPad = this.divisionFactor * x;
-            let xWorldSpace = xStart + x * this.cubeSideLength;
-            let xNextWorldSpace = xStart + (x + 1) * this.cubeSideLength;
-            for (let z = 0; z < this.divisionFactor; z++) {
-                let zWorldSpace = zStart + z * this.cubeSideLength;
-                let zNextWorldSpace = zStart + (z + 1) * this.cubeSideLength;
-                let cubeColor = this.cubeSpace[xPad + z];
-                if (cubeColor != undefined) {
-                    vertices.push(
-                        xWorldSpace, -3.0, zWorldSpace,
-                        xWorldSpace, -3.0, zNextWorldSpace,
-                        xNextWorldSpace, -3.0, zNextWorldSpace,
-                        xNextWorldSpace, -3.0, zNextWorldSpace,
-                        xNextWorldSpace, -3.0, zWorldSpace,
-                        xWorldSpace, -3.0, zWorldSpace
-                    );
-                    for (let i = 0; i < 6; i++) {
-                        colors.push(cubeColor[0], cubeColor[1], cubeColor[2]);
-                    }
-                }
-            }
-        }
-        this.cubeSpacePositionBuffer = this.gl.createBuffer();
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.cubeSpacePositionBuffer);
-        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(vertices), this.gl.STATIC_DRAW);
-        this.cubeSpaceColorBuffer = this.gl.createBuffer();
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.cubeSpaceColorBuffer);
-        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(colors), this.gl.STATIC_DRAW);
-        this.cubeSpaceNumberOfVertices = vertices.length;
+        this.cubeSpace.cubeSpace[this.getCubeInSpaceIndex(x, y, z)] = color;
     }
 
     setCubeLayer(y: number): void {
@@ -105,7 +64,7 @@ export default class Scene {
         for (let x = 0; x < this.divisionFactor; x++) {
             let xPad = x * this.divisionFactor;
             for (let z = 0; z < this.divisionFactor; z++) {
-                let cubeColor = this.cubeSpace[yPad + xPad + z];
+                let cubeColor = this.cubeSpace.cubeSpace[yPad + xPad + z];
                 if (cubeColor != undefined) {
                     this.addCube(x, z, cubeColor)
                 }
@@ -117,7 +76,7 @@ export default class Scene {
         if (x >= 0 && x < this.divisionFactor && z >= 0 && z < this.divisionFactor) {
             let hoverCubeModelMatrix = mat4.fromTranslation(mat4.create(), vec3.fromValues(
                 this.upperLeft[0] + this.cubeSideLength * x,
-                -this.cubeSideLength,
+                0,
                 this.upperLeft[1] + this.cubeSideLength * z
             ));
             this.hoverCube.modelMatrix = hoverCubeModelMatrix;
@@ -134,7 +93,7 @@ export default class Scene {
         if (x >= 0 && x < this.divisionFactor && z >= 0 && z < this.divisionFactor) {
             let cubeModelMatrix = mat4.fromTranslation(mat4.create(), vec3.fromValues(
                 this.upperLeft[0] + this.cubeSideLength * x,
-                -this.cubeSideLength,
+                0,
                 this.upperLeft[1] + this.cubeSideLength * z
             ));
             let cubeKey = this.getCubeString(x, z);
