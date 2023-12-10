@@ -106,7 +106,10 @@ export default class Scene {
     deleteCube(x: number, z: number): boolean {
         if (x >= 0 && x < this.divisionFactor && z >= 0 && z < this.divisionFactor) {
             let cubeKey = this.getCubeString(x, z);
-            return this.cubeLayer.delete(cubeKey)
+            if (this.cubeLayer.delete(cubeKey)) {
+                this.cubeSpace.deleteCube(x, this.currentLayer, z);
+                return true;
+            }
         }
         return false;
     }

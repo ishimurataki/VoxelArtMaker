@@ -1,6 +1,11 @@
 import { vec3, vec4, mat4 } from "./gl-matrix/index.js"
 
-export default class PolarCamera {
+enum Mode {
+    Editor,
+    Viewer
+}
+
+class PolarCamera {
     fovy: number = 45.0 * Math.PI / 180;
     width: number;
     height: number;
@@ -14,6 +19,18 @@ export default class PolarCamera {
     theta: number = 0;                // theta ranges from 0 to 2pi
     phi: number = 0.5 * Math.PI;   // phi ranges from 0 to pi
     r: number = 1.5;
+
+    private mode: Mode = Mode.Editor;
+
+    private editorRef = vec3.fromValues(0.0, 0.0, 0.0);
+    private readonly EDITOR_THETA: number = 0;
+    private readonly EDITOR_PHI: number = 0.499 * Math.PI;
+    private readonly EDITOR_R: number = 1.5;
+
+    private viewerRef = vec3.fromValues(0.0, 0.0, 0.0);
+    private viewerTheta: number = 0.25 * Math.PI;
+    private viewerPhi: number = 0.25 * Math.PI;
+    private viewerR: number = 1.5;
 
     constructor(width: number, height: number) {
         this.width = width;
@@ -65,18 +82,27 @@ export default class PolarCamera {
     }
 
     rotateTheta(rad: number): void {
-        this.theta += rad;
-        this.theta %= 2 * Math.PI;
+        if (this.mode == Mode.Viewer) {
+            this.theta += rad;
+            this.theta %= 2 * Math.PI;
+            this.viewerTheta = this.theta;
+        }
     }
 
     rotatePhi(rad: number): void {
-        this.phi += rad;
-        if (this.phi > (1 / 2) * Math.PI - 0.01) this.phi = (1 / 2) * Math.PI - 0.01;
-        if (this.phi < (-1 / 2) * Math.PI + 0.01) this.phi = (-1 / 2) * Math.PI + 0.01;
+        if (this.mode == Mode.Viewer) {
+            this.phi += rad;
+            if (this.phi > (1 / 2) * Math.PI - 0.01) this.phi = (1 / 2) * Math.PI - 0.01;
+            if (this.phi < (-1 / 2) * Math.PI + 0.01) this.phi = (-1 / 2) * Math.PI + 0.01;
+            this.viewerPhi = this.phi;
+        }
     }
 
     zoom(amt: number): void {
-        this.r += amt * this.r * 0.1;
+        if (this.mode == Mode.Viewer) {
+            this.r += amt * this.r * 0.1;
+            this.viewerR = this.r;
+        }
     }
 
     reset(): void {
@@ -92,4 +118,38 @@ export default class PolarCamera {
         console.log('Eye: ' + this.eye);
         console.log('Up: ' + this.up);
     }
+
+    getMode(): Mode {
+        return this.mode;
+    }
+
+    changeToViewer(): void {
+        this.mode = Mode.Viewer;
+    }
+
+    changeToEditor(): void {
+        this.mode = Mode.Editor;
+    }
+
+    setEditorRef(ref: vec3): void {
+        this.editorRef = ref;
+    }
+
+    transition(a: number): void {
+        a = Math.min(1, Math.max(0, a));
+        if (this.mode == Mode.Editor) {
+            let x = vec3.scale(vec3.create(), this.ref, (1 - a));
+            let y = vec3.scale(vec3.create(), this.editorRef, a);
+            this.setRef(vec3.add(vec3.create(), x, y));
+            this.r = this.r * (1 - a) + this.EDITOR_R * a;
+            this.theta = this.theta * (1 - a) + this.EDITOR_THETA * a;
+            this.phi = this.phi * (1 - a) + this.EDITOR_PHI * a;
+        } else if (this.mode == Mode.Viewer) {
+            this.r = this.r * (1 - a) + this.viewerR * a;
+            this.theta = this.theta * (1 - a) + this.viewerTheta * a;
+            this.phi = this.phi * (1 - a) + this.viewerPhi * a;
+        }
+    }
 }
+
+export { Mode, PolarCamera };

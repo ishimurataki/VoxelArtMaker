@@ -1,6 +1,6 @@
 import initShaderProgram from "./utils/shader_helper.js";
 import { flatVertexShaderSource, flatFragmentShaderSource } from "./shaders/flat_shader.js";
-import PolarCamera from "./polar_camera.js";
+import { Mode, PolarCamera } from "./polar_camera.js";
 import { vec2, vec3, mat4 } from "./gl-matrix/index.js";
 import Scene from "./renderables/scene.js";
 // GLOBAL VARIABLES DECLARATIONS
@@ -16,22 +16,8 @@ let SCENE;
 let RENDER_HOVER_CUBE = false;
 let HOVER_CUBE_COLOR = vec3.fromValues(0.31372, 0.7843, 0.47059);
 let LAYER = 0;
-var Mode;
-(function (Mode) {
-    Mode[Mode["Editor"] = 0] = "Editor";
-    Mode[Mode["Viewer"] = 1] = "Viewer";
-})(Mode || (Mode = {}));
-let MODE = Mode.Editor;
-let MODE_WANTED = Mode.Editor;
 let TRANSITIONING = false;
 let TRANSITION_TIME = 0;
-let CAMERA_DISTANCE_ABOVE = 3;
-let CAMERA_POS_EDITOR = vec3.fromValues(0, CAMERA_DISTANCE_ABOVE, 0);
-let CAMERA_POS_VIEWER;
-let CAMERA_REF = vec3.fromValues(0, 0, 0);
-let CAMERA_R = 1.5;
-let CAMERA_THETA = 0.001;
-let CAMERA_PHI = 0.499 * Math.PI;
 let PREVIOUS_TIME = 0;
 const registerControls = () => {
     let mouseDown = false;
@@ -43,7 +29,7 @@ const registerControls = () => {
     let zoomSpeed = -0.008;
     let layerScrollSpeed = 0.005;
     const moveHandler = (e) => {
-        if (MODE == Mode.Editor) {
+        if (CAMERA.getMode() == Mode.Editor) {
             const rect = CANVAS.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
@@ -74,7 +60,7 @@ const registerControls = () => {
                 cubePlacedInCurrentPos = true;
             }
         }
-        else if (MODE = Mode.Viewer) {
+        else if (CAMERA.getMode() == Mode.Viewer) {
             if (mouseDown) {
                 console.log("MOVING CAMERA");
                 let xMove = e.movementX * movementSpeed;
@@ -86,18 +72,18 @@ const registerControls = () => {
     };
     const mousewheelHandler = (e) => {
         e.preventDefault();
-        if (MODE == Mode.Viewer) {
+        if (CAMERA.getMode() == Mode.Viewer) {
             let zoom = zoomSpeed * e.deltaY;
             CAMERA.zoom(zoom);
         }
-        else if (MODE == Mode.Editor) {
+        else if (CAMERA.getMode() == Mode.Editor) {
             let prevLayer = Math.round(LAYER);
             let layerScroll = layerScrollSpeed * e.deltaY;
             LAYER = Math.min(DIVISION_FACTOR - 1, Math.max(0, LAYER + layerScroll));
             let currentLayer = Math.round(LAYER);
             if (prevLayer != currentLayer) {
                 console.log("Setting layer to: " + currentLayer);
-                CAMERA_REF = vec3.fromValues(0.0, currentLayer / DIVISION_FACTOR, 0.0);
+                CAMERA.setEditorRef(vec3.fromValues(0.0, currentLayer / DIVISION_FACTOR, 0.0));
                 TRANSITIONING = true;
                 TRANSITION_TIME = 0;
                 SCENE.setCubeLayer(currentLayer);
@@ -135,12 +121,12 @@ const registerControls = () => {
                 TRANSITIONING = true;
                 TRANSITION_TIME = 0;
                 console.log("Toggling mode");
-                if (MODE == Mode.Editor) {
+                if (CAMERA.getMode() == Mode.Editor) {
                     SCENE.cubeSpace.populateBuffers();
-                    MODE = Mode.Viewer;
+                    CAMERA.changeToViewer();
                 }
-                else {
-                    MODE = Mode.Editor;
+                else if (CAMERA.getMode() == Mode.Viewer) {
+                    CAMERA.changeToEditor();
                 }
         }
     };
@@ -218,7 +204,6 @@ function main() {
         }
     });
     CAMERA.changeWidthHeight(CLIENT_WIDTH, CLIENT_HEIGHT);
-    CAMERA.eye = CAMERA_POS_EDITOR;
     gl.viewport(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
     let projectionMatrix = CAMERA.getProjMatrix();
     let modelViewMatrix = CAMERA.getViewMatrix();
@@ -245,7 +230,7 @@ function main() {
         mat4.invert(VIEW_PROJECTION_INVERSE, CAMERA.getViewProj());
         gl.uniformMatrix4fv(programInfo.flatShader.uniformLocations.projectionMatrix, false, projectionMatrix);
         gl.uniformMatrix4fv(programInfo.flatShader.uniformLocations.modelViewMatrix, false, modelViewMatrix);
-        if (MODE == Mode.Editor) {
+        if (CAMERA.getMode() == Mode.Editor) {
             gl.uniform1i(programInfo.flatShader.uniformLocations.useUniformColor, 1);
             // Draw cubes
             let firstCube = true;
@@ -279,7 +264,7 @@ function main() {
             gl.uniformMatrix4fv(programInfo.flatShader.uniformLocations.modelMatrix, false, SCENE.grid.modelMatrix);
             gl.drawArrays(SCENE.grid.mesh.drawingMode, 0, SCENE.grid.mesh.vertices.length / 3);
         }
-        else if (MODE == Mode.Viewer) {
+        else if (CAMERA.getMode() == Mode.Viewer) {
             gl.uniform1i(programInfo.flatShader.uniformLocations.useUniformColor, 0);
             // Draw cube space
             gl.bindBuffer(gl.ARRAY_BUFFER, SCENE.cubeSpace.cubeSpacePositionBuffer);
@@ -300,20 +285,10 @@ function tick(currentTime) {
         let a = TRANSITION_TIME / 1000;
         if (a > 1) {
             TRANSITIONING = false;
-            console.log("DONE");
+            TRANSITION_TIME = 0;
         }
-        let x = vec3.scale(vec3.create(), CAMERA.ref, (1 - a));
-        let y = vec3.scale(vec3.create(), CAMERA_REF, a);
-        CAMERA.setRef(vec3.add(vec3.create(), x, y));
-        if (MODE == Mode.Editor) {
-            CAMERA.r = CAMERA.r * (1 - a) + CAMERA_R * a;
-            CAMERA.theta = CAMERA.theta * (1 - a) + CAMERA_THETA * a;
-            CAMERA.phi = CAMERA.phi * (1 - a) + CAMERA_PHI * a;
-        }
+        CAMERA.transition(a);
         TRANSITION_TIME += deltaTime;
-    }
-    else {
-        TRANSITION_TIME = 0;
     }
     PREVIOUS_TIME = currentTime;
 }

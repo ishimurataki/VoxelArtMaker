@@ -25,6 +25,10 @@ export default class CubeSpace {
         this.cubeSpace[this.getCubeIndex(x, y, z)] = color;
     }
 
+    deleteCube(x: number, y: number, z: number): void {
+        this.cubeSpace[this.getCubeIndex(x, y, z)] = undefined;
+    }
+
     populateBuffers() {
         let vertices = [];
         let colors = [];
