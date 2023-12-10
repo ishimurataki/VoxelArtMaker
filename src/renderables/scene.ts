@@ -21,6 +21,8 @@ export default class Scene {
     private cubeSideLength: number;
     private upperLeft: vec2;
 
+    private currentLayer = 0;
+
     constructor(gl: WebGLRenderingContext, divisionFactor: number, upperLeft: vec2, hoverCubeColor: vec3) {
         this.divisionFactor = divisionFactor;
         this.cubeSideLength = 1 / divisionFactor;
@@ -46,29 +48,24 @@ export default class Scene {
         return "cube_" + x + "_" + z;
     }
 
-    private getCubeInSpaceIndex(x: number, y: number, z: number): number {
-        return (y * Math.pow(this.divisionFactor, 2)) + (x * this.divisionFactor) + z;
-    }
-
-    private getCubeInSpace(x: number, y: number, z: number): vec3 | undefined {
-        return this.cubeSpace.cubeSpace[this.getCubeInSpaceIndex(x, y, z)];
-    }
-
-    private setCubeInSpace(x: number, y: number, z: number, color: vec3): void {
-        this.cubeSpace.cubeSpace[this.getCubeInSpaceIndex(x, y, z)] = color;
-    }
-
     setCubeLayer(y: number): void {
-        this.cubeLayer.clear();
-        let yPad = y * Math.pow(this.divisionFactor, 2);
-        for (let x = 0; x < this.divisionFactor; x++) {
-            let xPad = x * this.divisionFactor;
-            for (let z = 0; z < this.divisionFactor; z++) {
-                let cubeColor = this.cubeSpace.cubeSpace[yPad + xPad + z];
-                if (cubeColor != undefined) {
-                    this.addCube(x, z, cubeColor)
+        if (y >= 0 && y < this.divisionFactor) {
+            this.cubeLayer.clear();
+            this.currentLayer = y;
+            let yPad = y * Math.pow(this.divisionFactor, 2);
+            for (let x = 0; x < this.divisionFactor; x++) {
+                let xPad = x * this.divisionFactor;
+                for (let z = 0; z < this.divisionFactor; z++) {
+                    let cubeColor = this.cubeSpace.cubeSpace[yPad + xPad + z];
+                    if (cubeColor != undefined) {
+                        this.addCube(x, z, cubeColor)
+                    }
                 }
             }
+            this.grid.modelMatrix = mat4.fromTranslation(mat4.create(), vec3.fromValues(
+                this.upperLeft[0],
+                this.currentLayer * this.cubeSideLength,
+                this.upperLeft[1]));
         }
     }
 
@@ -76,7 +73,7 @@ export default class Scene {
         if (x >= 0 && x < this.divisionFactor && z >= 0 && z < this.divisionFactor) {
             let hoverCubeModelMatrix = mat4.fromTranslation(mat4.create(), vec3.fromValues(
                 this.upperLeft[0] + this.cubeSideLength * x,
-                0,
+                this.currentLayer * this.cubeSideLength,
                 this.upperLeft[1] + this.cubeSideLength * z
             ));
             this.hoverCube.modelMatrix = hoverCubeModelMatrix;
@@ -93,14 +90,14 @@ export default class Scene {
         if (x >= 0 && x < this.divisionFactor && z >= 0 && z < this.divisionFactor) {
             let cubeModelMatrix = mat4.fromTranslation(mat4.create(), vec3.fromValues(
                 this.upperLeft[0] + this.cubeSideLength * x,
-                0,
+                this.cubeSideLength * this.currentLayer,
                 this.upperLeft[1] + this.cubeSideLength * z
             ));
             let cubeKey = this.getCubeString(x, z);
             let cubeColor = vec3.copy(vec3.create(), color);
             let cubeRenderable = new Renderable(this.cubeMesh, cubeColor, cubeModelMatrix);
             this.cubeLayer.set(cubeKey, cubeRenderable);
-            this.setCubeInSpace(x, 0, z, cubeColor);
+            this.cubeSpace.setCube(x, this.currentLayer, z, cubeColor);
             return true;
         }
         return false;

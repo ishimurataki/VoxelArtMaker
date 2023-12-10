@@ -8,6 +8,12 @@ export default class CubeSpace {
         this.upperLeft = upperLeft;
         this.gl = gl;
     }
+    getCubeIndex(x, y, z) {
+        return (y * Math.pow(this.divisionFactor, 2)) + (x * this.divisionFactor) + z;
+    }
+    setCube(x, y, z, color) {
+        this.cubeSpace[this.getCubeIndex(x, y, z)] = color;
+    }
     populateBuffers() {
         let vertices = [];
         let colors = [];

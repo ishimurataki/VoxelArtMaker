@@ -15,12 +15,24 @@ let UPPER_LEFT = vec2.fromValues(-0.5, -0.5);
 let SCENE;
 let RENDER_HOVER_CUBE = false;
 let HOVER_CUBE_COLOR = vec3.fromValues(0.31372, 0.7843, 0.47059);
+let LAYER = 0;
 var Mode;
 (function (Mode) {
     Mode[Mode["Editor"] = 0] = "Editor";
     Mode[Mode["Viewer"] = 1] = "Viewer";
 })(Mode || (Mode = {}));
 let MODE = Mode.Editor;
+let MODE_WANTED = Mode.Editor;
+let TRANSITIONING = false;
+let TRANSITION_TIME = 0;
+let CAMERA_DISTANCE_ABOVE = 3;
+let CAMERA_POS_EDITOR = vec3.fromValues(0, CAMERA_DISTANCE_ABOVE, 0);
+let CAMERA_POS_VIEWER;
+let CAMERA_REF = vec3.fromValues(0, 0, 0);
+let CAMERA_R = 1.5;
+let CAMERA_THETA = 0.001;
+let CAMERA_PHI = 0.499 * Math.PI;
+let PREVIOUS_TIME = 0;
 const registerControls = () => {
     let mouseDown = false;
     let shiftDown = false;
@@ -29,6 +41,7 @@ const registerControls = () => {
     let zIndex = -1;
     let movementSpeed = 0.01;
     let zoomSpeed = -0.008;
+    let layerScrollSpeed = 0.005;
     const moveHandler = (e) => {
         if (MODE == Mode.Editor) {
             const rect = CANVAS.getBoundingClientRect();
@@ -72,10 +85,23 @@ const registerControls = () => {
         }
     };
     const mousewheelHandler = (e) => {
+        e.preventDefault();
         if (MODE == Mode.Viewer) {
-            e.preventDefault();
-            let zoom = e.deltaY * zoomSpeed;
+            let zoom = zoomSpeed * e.deltaY;
             CAMERA.zoom(zoom);
+        }
+        else if (MODE == Mode.Editor) {
+            let prevLayer = Math.round(LAYER);
+            let layerScroll = layerScrollSpeed * e.deltaY;
+            LAYER = Math.min(DIVISION_FACTOR - 1, Math.max(0, LAYER + layerScroll));
+            let currentLayer = Math.round(LAYER);
+            if (prevLayer != currentLayer) {
+                console.log("Setting layer to: " + currentLayer);
+                CAMERA_REF = vec3.fromValues(0.0, currentLayer / DIVISION_FACTOR, 0.0);
+                TRANSITIONING = true;
+                TRANSITION_TIME = 0;
+                SCENE.setCubeLayer(currentLayer);
+            }
         }
     };
     const clickHandler = (e) => {
@@ -106,6 +132,8 @@ const registerControls = () => {
                 shiftDown = false;
                 break;
             case "Space":
+                TRANSITIONING = true;
+                TRANSITION_TIME = 0;
                 console.log("Toggling mode");
                 if (MODE == Mode.Editor) {
                     SCENE.cubeSpace.populateBuffers();
@@ -190,6 +218,7 @@ function main() {
         }
     });
     CAMERA.changeWidthHeight(CLIENT_WIDTH, CLIENT_HEIGHT);
+    CAMERA.eye = CAMERA_POS_EDITOR;
     gl.viewport(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
     let projectionMatrix = CAMERA.getProjMatrix();
     let modelViewMatrix = CAMERA.getViewMatrix();
@@ -199,7 +228,9 @@ function main() {
     gl.uniformMatrix4fv(programInfo.flatShader.uniformLocations.projectionMatrix, false, projectionMatrix);
     gl.uniformMatrix4fv(programInfo.flatShader.uniformLocations.modelViewMatrix, false, modelViewMatrix);
     SCENE = new Scene(gl, DIVISION_FACTOR, UPPER_LEFT, HOVER_CUBE_COLOR);
+    PREVIOUS_TIME = performance.now();
     function render(now) {
+        tick(now);
         drawScene(gl);
         requestAnimationFrame(render);
     }
@@ -262,5 +293,28 @@ function main() {
             gl.disableVertexAttribArray(programInfo.flatShader.attribLocations.vertexColor);
         }
     }
+}
+function tick(currentTime) {
+    let deltaTime = currentTime - PREVIOUS_TIME;
+    if (TRANSITIONING) {
+        let a = TRANSITION_TIME / 1000;
+        if (a > 1) {
+            TRANSITIONING = false;
+            console.log("DONE");
+        }
+        let x = vec3.scale(vec3.create(), CAMERA.ref, (1 - a));
+        let y = vec3.scale(vec3.create(), CAMERA_REF, a);
+        CAMERA.setRef(vec3.add(vec3.create(), x, y));
+        if (MODE == Mode.Editor) {
+            CAMERA.r = CAMERA.r * (1 - a) + CAMERA_R * a;
+            CAMERA.theta = CAMERA.theta * (1 - a) + CAMERA_THETA * a;
+            CAMERA.phi = CAMERA.phi * (1 - a) + CAMERA_PHI * a;
+        }
+        TRANSITION_TIME += deltaTime;
+    }
+    else {
+        TRANSITION_TIME = 0;
+    }
+    PREVIOUS_TIME = currentTime;
 }
 window.onload = main;
