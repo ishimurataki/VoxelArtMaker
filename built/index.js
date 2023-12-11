@@ -7,9 +7,10 @@ import Scene from "./renderables/scene.js";
 let CLIENT_WIDTH = 0;
 let CLIENT_HEIGHT = 0;
 let CANVAS;
+let LAYER_LABEL;
 let CAMERA = new PolarCamera(0, 0);
 let VIEW_PROJECTION_INVERSE = mat4.create();
-let DIVISION_FACTOR = 16;
+let DIVISION_FACTOR = 32;
 let SIDE_LENGTH = 1 / DIVISION_FACTOR;
 let UPPER_LEFT = vec2.fromValues(-0.5, -0.5);
 let SCENE;
@@ -19,6 +20,7 @@ let LAYER = 0;
 let TRANSITIONING = false;
 let TRANSITION_TIME = 0;
 let PREVIOUS_TIME = 0;
+let BACKGROUND_COLOR = vec3.fromValues(0.15, 0.15, 0.15);
 const registerControls = () => {
     let mouseDown = false;
     let shiftDown = false;
@@ -38,7 +40,8 @@ const registerControls = () => {
             const start = vec3.transformMat4(vec3.create(), vec3.fromValues(clipX, clipY, -1), VIEW_PROJECTION_INVERSE);
             const end = vec3.transformMat4(vec3.create(), vec3.fromValues(clipX, clipY, 1), VIEW_PROJECTION_INVERSE);
             const v = vec3.sub(vec3.create(), end, start);
-            const t = -start[1] / v[1];
+            const currentLayerY = Math.round(LAYER) / DIVISION_FACTOR;
+            const t = (currentLayerY - start[1]) / v[1];
             let cursorXWorld = start[0] + t * v[0];
             let cursorZWorld = start[2] + t * v[2];
             let xIndexNow = Math.floor((cursorXWorld - UPPER_LEFT[0]) / SIDE_LENGTH);
@@ -79,9 +82,11 @@ const registerControls = () => {
         else if (CAMERA.getMode() == Mode.Editor) {
             let prevLayer = Math.round(LAYER);
             let layerScroll = layerScrollSpeed * e.deltaY;
-            LAYER = Math.min(DIVISION_FACTOR - 1, Math.max(0, LAYER + layerScroll));
+            LAYER = Math.min(DIVISION_FACTOR - 1, Math.max(0, LAYER - layerScroll));
             let currentLayer = Math.round(LAYER);
             if (prevLayer != currentLayer) {
+                LAYER_LABEL.innerHTML = "Layer: " + currentLayer.toString();
+                RENDER_HOVER_CUBE = false;
                 console.log("Setting layer to: " + currentLayer);
                 CAMERA.setEditorRef(vec3.fromValues(0.0, currentLayer / DIVISION_FACTOR, 0.0));
                 TRANSITIONING = true;
@@ -118,11 +123,14 @@ const registerControls = () => {
                 shiftDown = false;
                 break;
             case "Space":
+                RENDER_HOVER_CUBE = false;
                 TRANSITIONING = true;
                 TRANSITION_TIME = 0;
                 console.log("Toggling mode");
                 if (CAMERA.getMode() == Mode.Editor) {
-                    SCENE.cubeSpace.populateBuffers();
+                    let yRange = SCENE.cubeSpace.populateBuffers();
+                    let viewerRefY = yRange[0] + yRange[1] / (2 * DIVISION_FACTOR);
+                    CAMERA.setViewerRef(vec3.fromValues(0, viewerRefY, 0));
                     CAMERA.changeToViewer();
                 }
                 else if (CAMERA.getMode() == Mode.Viewer) {
@@ -149,6 +157,12 @@ const registerControls = () => {
 };
 function main() {
     console.log("Starting main function.");
+    const layerLabelMaybeNull = document.getElementById("layerLabel");
+    if (layerLabelMaybeNull == null) {
+        alert("Couldn't find layer label element.");
+        return;
+    }
+    LAYER_LABEL = layerLabelMaybeNull;
     const canvasMaybeNull = document.querySelector("#glCanvas");
     if (canvasMaybeNull == null) {
         alert("Couldn't find canvas element.");
@@ -183,7 +197,8 @@ function main() {
                 modelViewMatrix: gl.getUniformLocation(flatShaderProgram, 'uModelViewMatrix'),
                 modelMatrix: gl.getUniformLocation(flatShaderProgram, 'uModelMatrix'),
                 color: gl.getUniformLocation(flatShaderProgram, 'uColor'),
-                useUniformColor: gl.getUniformLocation(flatShaderProgram, 'uUseUniformColor')
+                useUniformColor: gl.getUniformLocation(flatShaderProgram, 'uUseUniformColor'),
+                cameraPosition: gl.getUniformLocation(flatShaderProgram, 'uCameraPosition')
             }
         }
     };
@@ -222,7 +237,7 @@ function main() {
     requestAnimationFrame(render);
     gl.enable(gl.DEPTH_TEST);
     function drawScene(gl) {
-        gl.clearColor(0.15, 0.15, 0.15, 1.0);
+        gl.clearColor(BACKGROUND_COLOR[0], BACKGROUND_COLOR[1], BACKGROUND_COLOR[2], 1.0);
         gl.clearDepth(1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         let projectionMatrix = CAMERA.getProjMatrix();
@@ -230,6 +245,7 @@ function main() {
         mat4.invert(VIEW_PROJECTION_INVERSE, CAMERA.getViewProj());
         gl.uniformMatrix4fv(programInfo.flatShader.uniformLocations.projectionMatrix, false, projectionMatrix);
         gl.uniformMatrix4fv(programInfo.flatShader.uniformLocations.modelViewMatrix, false, modelViewMatrix);
+        gl.uniform3fv(programInfo.flatShader.uniformLocations.cameraPosition, CAMERA.getPosition());
         if (CAMERA.getMode() == Mode.Editor) {
             gl.uniform1i(programInfo.flatShader.uniformLocations.useUniformColor, 1);
             // Draw cubes
@@ -270,11 +286,15 @@ function main() {
             gl.bindBuffer(gl.ARRAY_BUFFER, SCENE.cubeSpace.cubeSpacePositionBuffer);
             gl.vertexAttribPointer(programInfo.flatShader.attribLocations.vertexPosition, 3, gl.FLOAT, false, 0, 0);
             gl.enableVertexAttribArray(programInfo.flatShader.attribLocations.vertexPosition);
+            gl.bindBuffer(gl.ARRAY_BUFFER, SCENE.cubeSpace.cubeSpaceNormalBuffer);
+            gl.vertexAttribPointer(programInfo.flatShader.attribLocations.vertexNormal, 3, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(programInfo.flatShader.attribLocations.vertexNormal);
             gl.bindBuffer(gl.ARRAY_BUFFER, SCENE.cubeSpace.cubeSpaceColorBuffer);
             gl.vertexAttribPointer(programInfo.flatShader.attribLocations.vertexColor, 3, gl.FLOAT, false, 0, 0);
             gl.enableVertexAttribArray(programInfo.flatShader.attribLocations.vertexColor);
             gl.uniformMatrix4fv(programInfo.flatShader.uniformLocations.modelMatrix, false, mat4.create());
             gl.drawArrays(gl.TRIANGLES, 0, SCENE.cubeSpace.cubeSpaceNumberOfVertices);
+            gl.disableVertexAttribArray(programInfo.flatShader.attribLocations.vertexNormal);
             gl.disableVertexAttribArray(programInfo.flatShader.attribLocations.vertexColor);
         }
     }

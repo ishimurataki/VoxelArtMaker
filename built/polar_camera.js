@@ -22,7 +22,7 @@ class PolarCamera {
         this.EDITOR_R = 1.5;
         this.viewerRef = vec3.fromValues(0.0, 0.0, 0.0);
         this.viewerTheta = 0.25 * Math.PI;
-        this.viewerPhi = 0.25 * Math.PI;
+        this.viewerPhi = 0.15 * Math.PI;
         this.viewerR = 1.5;
         this.width = width;
         this.height = height;
@@ -106,21 +106,33 @@ class PolarCamera {
     setEditorRef(ref) {
         this.editorRef = ref;
     }
+    setViewerRef(ref) {
+        this.viewerRef = ref;
+    }
     transition(a) {
         a = Math.min(1, Math.max(0, a));
+        let refDesired = this.editorRef;
+        let rDesired = 0;
+        let thetaDesired = 0;
+        let phiDesired = 0;
         if (this.mode == Mode.Editor) {
-            let x = vec3.scale(vec3.create(), this.ref, (1 - a));
-            let y = vec3.scale(vec3.create(), this.editorRef, a);
-            this.setRef(vec3.add(vec3.create(), x, y));
-            this.r = this.r * (1 - a) + this.EDITOR_R * a;
-            this.theta = this.theta * (1 - a) + this.EDITOR_THETA * a;
-            this.phi = this.phi * (1 - a) + this.EDITOR_PHI * a;
+            refDesired = this.editorRef;
+            rDesired = this.EDITOR_R;
+            thetaDesired = this.EDITOR_THETA;
+            phiDesired = this.EDITOR_PHI;
         }
         else if (this.mode == Mode.Viewer) {
-            this.r = this.r * (1 - a) + this.viewerR * a;
-            this.theta = this.theta * (1 - a) + this.viewerTheta * a;
-            this.phi = this.phi * (1 - a) + this.viewerPhi * a;
+            refDesired = this.viewerRef;
+            rDesired = this.viewerR;
+            thetaDesired = this.viewerTheta;
+            phiDesired = this.viewerPhi;
         }
+        let x = vec3.scale(vec3.create(), this.ref, (1 - a));
+        let y = vec3.scale(vec3.create(), refDesired, a);
+        this.setRef(vec3.add(vec3.create(), x, y));
+        this.r = this.r * (1 - a) + rDesired * a;
+        this.theta = this.theta * (1 - a) + thetaDesired * a;
+        this.phi = this.phi * (1 - a) + phiDesired * a;
     }
 }
 export { Mode, PolarCamera };

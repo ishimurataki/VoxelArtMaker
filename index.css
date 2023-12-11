@@ -28,10 +28,16 @@ canvas {
 }
 
 #colorPicker {
+    float: left;
     width: 150px;
     height: 32px;
-    padding: 0 10px;
+    padding: 0px 10px;
     border: 1px solid #ccc;
     border-radius: 15px;
     font-weight: bold;
+}
+
+#layerLabel {
+    margin-top: 5em;
+    margin-bottom: 5em;
 }

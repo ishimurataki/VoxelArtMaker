@@ -1,3 +1,4 @@
+import { vec2 } from "../gl-matrix/index.js";
 export default class CubeSpace {
     constructor(gl, divisionFactor, upperLeft) {
         this.cubeSpaceNumberOfVertices = 0;
@@ -19,9 +20,12 @@ export default class CubeSpace {
     }
     populateBuffers() {
         let vertices = [];
+        let normals = [];
         let colors = [];
         let xStart = this.upperLeft[0];
         let zStart = this.upperLeft[1];
+        let yMin = Number.MAX_SAFE_INTEGER;
+        let yMax = -1;
         for (let y = 0; y < this.divisionFactor; y++) {
             let yPad = this.divisionFactor * this.divisionFactor * y;
             let yPadBelow = this.divisionFactor * this.divisionFactor * (y - 1);
@@ -55,8 +59,10 @@ export default class CubeSpace {
                     }
                     if (renderBottomFace && renderBottomColor != undefined) {
                         vertices.push(xWorldSpace, yWorldSpace, zWorldSpace, xWorldSpace, yWorldSpace, zNextWorldSpace, xNextWorldSpace, yWorldSpace, zNextWorldSpace, xNextWorldSpace, yWorldSpace, zNextWorldSpace, xNextWorldSpace, yWorldSpace, zWorldSpace, xWorldSpace, yWorldSpace, zWorldSpace);
+                        let normal = (cubeColor != undefined) ? -1.0 : 1.0;
                         for (let i = 0; i < 6; i++) {
                             colors.push(renderBottomColor[0], renderBottomColor[1], renderBottomColor[2]);
+                            normals.push(0.0, normal, 0.0);
                         }
                     }
                     // Left faces
@@ -78,8 +84,10 @@ export default class CubeSpace {
                     }
                     if (renderLeftFace && renderLeftColor != undefined) {
                         vertices.push(xWorldSpace, yWorldSpace, zWorldSpace, xWorldSpace, yWorldSpace, zNextWorldSpace, xWorldSpace, yNextWorldSpace, zNextWorldSpace, xWorldSpace, yNextWorldSpace, zNextWorldSpace, xWorldSpace, yNextWorldSpace, zWorldSpace, xWorldSpace, yWorldSpace, zWorldSpace);
+                        let normal = (cubeColor != undefined) ? -1.0 : 1.0;
                         for (let i = 0; i < 6; i++) {
                             colors.push(renderLeftColor[0], renderLeftColor[1], renderLeftColor[2]);
+                            normals.push(normal, 0.0, 0.0);
                         }
                     }
                     // Front faces
@@ -101,8 +109,10 @@ export default class CubeSpace {
                     }
                     if (renderFrontFace && renderFrontColor != undefined) {
                         vertices.push(xWorldSpace, yWorldSpace, zWorldSpace, xNextWorldSpace, yWorldSpace, zWorldSpace, xNextWorldSpace, yNextWorldSpace, zWorldSpace, xNextWorldSpace, yNextWorldSpace, zWorldSpace, xWorldSpace, yNextWorldSpace, zWorldSpace, xWorldSpace, yWorldSpace, zWorldSpace);
+                        let normal = (cubeColor != undefined) ? -1.0 : 1.0;
                         for (let i = 0; i < 6; i++) {
                             colors.push(renderFrontColor[0], renderFrontColor[1], renderFrontColor[2]);
+                            normals.push(0.0, 0.0, normal);
                         }
                     }
                     // Top, right, and back faces 
@@ -111,20 +121,27 @@ export default class CubeSpace {
                             vertices.push(xWorldSpace, 1.0, zWorldSpace, xWorldSpace, 1.0, zNextWorldSpace, xNextWorldSpace, 1.0, zNextWorldSpace, xNextWorldSpace, 1.0, zNextWorldSpace, xNextWorldSpace, 1.0, zWorldSpace, xWorldSpace, 1.0, zWorldSpace);
                             for (let i = 0; i < 6; i++) {
                                 colors.push(cubeColor[0], cubeColor[1], cubeColor[2]);
+                                normals.push(0.0, 1.0, 0.0);
                             }
                         }
                         if (x == this.divisionFactor - 1) {
                             vertices.push(xStart + 1.0, yWorldSpace, zWorldSpace, xStart + 1.0, yWorldSpace, zNextWorldSpace, xStart + 1.0, yNextWorldSpace, zNextWorldSpace, xStart + 1.0, yNextWorldSpace, zNextWorldSpace, xStart + 1.0, yNextWorldSpace, zWorldSpace, xStart + 1.0, yWorldSpace, zWorldSpace);
                             for (let i = 0; i < 6; i++) {
                                 colors.push(cubeColor[0], cubeColor[1], cubeColor[2]);
+                                normals.push(1.0, 0.0, 0.0);
                             }
                         }
                         if (z == this.divisionFactor - 1) {
                             vertices.push(xWorldSpace, yWorldSpace, zStart + 1.0, xNextWorldSpace, yWorldSpace, zStart + 1.0, xNextWorldSpace, yNextWorldSpace, zStart + 1.0, xNextWorldSpace, yNextWorldSpace, zStart + 1.0, xWorldSpace, yNextWorldSpace, zStart + 1.0, xWorldSpace, yWorldSpace, zStart + 1.0);
                             for (let i = 0; i < 6; i++) {
                                 colors.push(cubeColor[0], cubeColor[1], cubeColor[2]);
+                                normals.push(0.0, 0.0, 1.0);
                             }
                         }
+                    }
+                    if (cubeColor != undefined) {
+                        yMax = Math.max(y, yMax);
+                        yMin = Math.min(y, yMin);
                     }
                 }
             }
@@ -132,10 +149,16 @@ export default class CubeSpace {
         this.cubeSpacePositionBuffer = this.gl.createBuffer();
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.cubeSpacePositionBuffer);
         this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(vertices), this.gl.STATIC_DRAW);
+        this.cubeSpaceNormalBuffer = this.gl.createBuffer();
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.cubeSpaceNormalBuffer);
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(normals), this.gl.STATIC_DRAW);
         this.cubeSpaceColorBuffer = this.gl.createBuffer();
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.cubeSpaceColorBuffer);
         this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(colors), this.gl.STATIC_DRAW);
         this.cubeSpaceNumberOfVertices = vertices.length / 3;
-        console.log(vertices.length / 3);
+        console.log("Number of vertices: " + vertices.length / 3);
+        console.log("Number of colors: " + colors.length / 3);
+        console.log("Number of normals: " + normals.length / 3);
+        return vec2.fromValues(yMin, yMax);
     }
 }
