@@ -26,8 +26,6 @@ let TRANSITIONING: boolean = false;
 let TRANSITION_TIME = 0;
 let PREVIOUS_TIME = 0;
 
-let BACKGROUND_COLOR = vec3.fromValues(0.15, 0.15, 0.15);
-
 const registerControls = () => {
     let mouseDown = false;
     let shiftDown = false;
@@ -285,7 +283,9 @@ function main() {
     gl.enable(gl.DEPTH_TEST);
 
     function drawScene(gl: WebGLRenderingContext) {
-        gl.clearColor(BACKGROUND_COLOR[0], BACKGROUND_COLOR[1], BACKGROUND_COLOR[2], 1.0);
+        gl.clearColor(SCENE.backgroundColor[0],
+            SCENE.backgroundColor[1],
+            SCENE.backgroundColor[2], 1.0);
         gl.clearDepth(1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -299,6 +299,15 @@ function main() {
 
         if (CAMERA.getMode() == Mode.Editor) {
             gl.uniform1i(programInfo.flatShader.uniformLocations.useUniformColor, 1);
+            // Draw tiles
+            for (let tile of SCENE.editorTiles) {
+                gl.bindBuffer(gl.ARRAY_BUFFER, tile.mesh.positionBuffer);
+                gl.vertexAttribPointer(programInfo.flatShader.attribLocations.vertexPosition, 3, gl.FLOAT, false, 0, 0);
+                gl.enableVertexAttribArray(programInfo.flatShader.attribLocations.vertexPosition);
+                gl.uniform3fv(programInfo.flatShader.uniformLocations.color, tile.color);
+                gl.uniformMatrix4fv(programInfo.flatShader.uniformLocations.modelMatrix, false, tile.modelMatrix);
+                gl.drawArrays(tile.mesh.drawingMode, 0, tile.mesh.vertices.length / 3);
+            }
             // Draw cubes
             let firstCube = true
             for (let cube of SCENE.cubeLayer.values()) {
