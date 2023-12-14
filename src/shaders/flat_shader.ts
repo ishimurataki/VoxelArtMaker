@@ -39,7 +39,7 @@ export const flatFragmentShaderSource: string = `
             vec3 ambient = ambientStrength * lightColor;
 
             vec3 norm = normalize(vNorm);
-            vec3 pointLightPos = vec3(-5.0, 5.0, -5.0);
+            vec3 pointLightPos = vec3(0.0, 0.5, 0.0);
             vec3 lightDir = normalize(pointLightPos - vPos);
 
             float diffuseCoefficient = max(dot(norm, lightDir), 0.0);

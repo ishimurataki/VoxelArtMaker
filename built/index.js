@@ -21,6 +21,7 @@ let TRANSITIONING = false;
 let TRANSITION_TIME = 0;
 let PREVIOUS_TIME = 0;
 const registerControls = () => {
+    var _a;
     let mouseDown = false;
     let shiftDown = false;
     let cubePlacedInCurrentPos = false;
@@ -116,6 +117,18 @@ const registerControls = () => {
             case "ShiftLeft":
                 shiftDown = true;
                 break;
+            case "KeyL":
+                fetch("/models/bonsai")
+                    .then((res) => {
+                    return res.text();
+                })
+                    .then((text) => {
+                    let model = JSON.parse(text);
+                    SCENE.cubeSpace.cubeSpace = model;
+                    toggleToViewer();
+                })
+                    .catch((e) => console.error(e));
+                break;
         }
     };
     const keyUpHandler = (e) => {
@@ -124,21 +137,27 @@ const registerControls = () => {
                 shiftDown = false;
                 break;
             case "Space":
-                RENDER_HOVER_CUBE = false;
-                TRANSITIONING = true;
-                TRANSITION_TIME = 0;
                 console.log("Toggling mode");
                 if (CAMERA.getMode() == Mode.Editor) {
-                    let yRange = SCENE.cubeSpace.populateBuffers();
-                    let viewerRefY = yRange[0] + yRange[1] / (2 * DIVISION_FACTOR);
-                    CAMERA.setViewerRef(vec3.fromValues(0, viewerRefY, 0));
-                    CAMERA.changeToViewer();
+                    toggleToViewer();
                 }
                 else if (CAMERA.getMode() == Mode.Viewer) {
+                    RENDER_HOVER_CUBE = false;
+                    TRANSITIONING = true;
+                    TRANSITION_TIME = 0;
                     CAMERA.changeToEditor();
                 }
         }
     };
+    function toggleToViewer() {
+        RENDER_HOVER_CUBE = false;
+        TRANSITIONING = true;
+        TRANSITION_TIME = 0;
+        let yRange = SCENE.cubeSpace.populateBuffers();
+        let viewerRefY = yRange[0] + yRange[1] / (2 * DIVISION_FACTOR);
+        CAMERA.setViewerRef(vec3.fromValues(0, viewerRefY, 0));
+        CAMERA.changeToViewer();
+    }
     const colorisPickHandler = (e) => {
         let rgbString = e.detail.color;
         let rgbArray = rgbString.slice(rgbString.indexOf("(") + 1, rgbString.indexOf(")")).split(", ");
@@ -146,6 +165,20 @@ const registerControls = () => {
         HOVER_CUBE_COLOR[1] = rgbArray[1] / 255;
         HOVER_CUBE_COLOR[2] = rgbArray[2] / 255;
         SCENE.setHoverCubeColor(HOVER_CUBE_COLOR);
+    };
+    const downloadButtonClickHandler = (e) => {
+        let cubeSpaceString = JSON.stringify(SCENE.cubeSpace.cubeSpace);
+        const file = new File([cubeSpaceString], 'new-note.txt', {
+            type: 'text/plain',
+        });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(file);
+        link.href = url;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
     };
     CANVAS.addEventListener('mousemove', moveHandler, false);
     CANVAS.addEventListener('click', clickHandler, false);
@@ -155,6 +188,7 @@ const registerControls = () => {
     document.addEventListener('keydown', keyDownHandler, false);
     document.addEventListener('keyup', keyUpHandler, false);
     document.addEventListener('coloris:pick', colorisPickHandler);
+    (_a = document.getElementById("downloadButton")) === null || _a === void 0 ? void 0 : _a.addEventListener('click', downloadButtonClickHandler, false);
 };
 function main() {
     console.log("Starting main function.");
