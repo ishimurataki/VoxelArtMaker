@@ -10,13 +10,25 @@
 </head>
 
 <body>
-    <div class="flex-container">
+    <a class="editorButton" id="openEditorButton">&#9776;</a>
+    <div class="flex-container-horizontal">
         <canvas id="glCanvas"></canvas>
         <div id="editorPane">
-            <div id="layerLabel">Layer: 0</div>
-            <input id="colorPicker" type="text" data-coloris value="rgb(80, 200, 120)">
-            <button id="downloadButton" type="button">Download</button>
-            <button id="bonsai" type="button">Bonsai Preset</button>
+            <a class="editorButton" id="closeEditorButton">&times;</a>
+            <div id="editorPaneFlexArea">
+                <div>Layer: <mark id="layerLabel">0</mark></div>
+                <div>Color: <input id="colorPicker" type="text" data-coloris value="rgb(80, 200, 120)"></div>
+                <div>Download Design: <button id="downloadButton" type="button">Click Me!</button></div>
+                <form action="">
+                    <label for="model">Load a model:</label>
+                    <select name="models" id="models">
+                        <option value="bonsai">Bonsai</option>
+                        <option value="lamp">Lamp</option>
+                        <option value="fire">Fire</option>
+                        <option value="face">Face</option>
+                    </select><input id="modelLoadButton" type="button" value="Load!">
+                </form>
+            </div>
         </div>
     </div>
     <script type="text/javascript">

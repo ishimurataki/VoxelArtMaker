@@ -95,7 +95,7 @@ const registerControls = () => {
             LAYER = Math.min(DIVISION_FACTOR - 1, Math.max(0, LAYER - layerScroll));
             let currentLayer = Math.round(LAYER);
             if (prevLayer != currentLayer) {
-                LAYER_LABEL.innerHTML = "Layer: " + currentLayer.toString();
+                LAYER_LABEL.innerHTML = currentLayer.toString();
                 RENDER_HOVER_CUBE = false;
                 console.log("Setting layer to: " + currentLayer);
                 CAMERA.setEditorRef(vec3.fromValues(0.0, currentLayer / DIVISION_FACTOR, 0.0));
@@ -118,11 +118,26 @@ const registerControls = () => {
     }
 
     const mouseDownHandler = (e: MouseEvent) => {
-        mouseDown = true;
+        switch (e.button) {
+            case 0:
+                mouseDown = true;
+                break;
+            case 2:
+                e.preventDefault();
+                console.log("Right click");
+                return false;
+        }
     }
 
     const mouseUpHandler = (e: MouseEvent) => {
-        mouseDown = false;
+        switch (e.button) {
+            case 0:
+                mouseDown = false;
+                break;
+            case 2:
+                e.preventDefault();
+                return false;
+        }
     }
 
     const keyDownHandler = (e: KeyboardEvent) => {
@@ -130,18 +145,8 @@ const registerControls = () => {
             case "ShiftLeft":
                 shiftDown = true;
                 break;
-            case "KeyL":
-                fetch("/models/bonsai")
-                    .then((res) => {
-                        return res.text();
-                    })
-                    .then((text) => {
-                        let model: (vec3 | undefined)[] = JSON.parse(text);
-                        SCENE.cubeSpace.cubeSpace = model;
-                        toggleToViewer();
-                    })
-                    .catch((e) => console.error(e));
-                break;
+            case "Space":
+                e.preventDefault();
         }
     }
 
@@ -168,7 +173,7 @@ const registerControls = () => {
         TRANSITIONING = true;
         TRANSITION_TIME = 0;
         let yRange: vec2 = SCENE.cubeSpace.populateBuffers();
-        let viewerRefY = yRange[0] + yRange[1] / (2 * DIVISION_FACTOR);
+        let viewerRefY = (yRange[0] + yRange[1]) / (2 * DIVISION_FACTOR);
         CAMERA.setViewerRef(vec3.fromValues(0, viewerRefY, 0));
         CAMERA.changeToViewer();
     }
@@ -189,18 +194,18 @@ const registerControls = () => {
         let cubeSpaceString = JSON.stringify(SCENE.cubeSpace.cubeSpace);
         const file = new File([cubeSpaceString], 'new-note.txt', {
             type: 'text/plain',
-        })
+        });
 
-        const link = document.createElement('a')
-        const url = URL.createObjectURL(file)
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(file);
 
-        link.href = url
-        link.download = file.name
-        document.body.appendChild(link)
-        link.click()
+        link.href = url;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
 
-        document.body.removeChild(link)
-        window.URL.revokeObjectURL(url)
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
     }
 
     CANVAS.addEventListener('mousemove', moveHandler, false);
@@ -212,6 +217,35 @@ const registerControls = () => {
     document.addEventListener('keyup', keyUpHandler, false);
     document.addEventListener('coloris:pick', colorisPickHandler);
     document.getElementById("downloadButton")?.addEventListener('click', downloadButtonClickHandler, false);
+    document.getElementById("closeEditorButton")?.addEventListener('click', () => {
+        let editorPaneElement = document.getElementById("editorPane");
+        if (editorPaneElement != null) {
+            editorPaneElement.style.display = "none";
+        }
+    });
+    document.getElementById("openEditorButton")?.addEventListener('click', () => {
+        let editorPaneElement = document.getElementById("editorPane");
+        if (editorPaneElement != null) {
+            editorPaneElement.style.display = "block";
+        }
+    });
+    document.getElementById("modelLoadButton")?.addEventListener('click', () => {
+        let selectElement = document.getElementById("models");
+        if (selectElement != null) {
+            let modelName = (selectElement as HTMLSelectElement).value;
+            fetch("/models/" + modelName)
+                .then((res) => {
+                    return res.text();
+                })
+                .then((text) => {
+                    let model: (vec3 | undefined)[] = JSON.parse(text);
+                    SCENE.cubeSpace.cubeSpace = model;
+                    toggleToViewer();
+                    SCENE.setCubeLayer(Math.round(LAYER));
+                })
+                .catch((e) => console.error(e));
+        }
+    })
 }
 
 function main() {
@@ -293,19 +327,9 @@ function main() {
         }
     });
 
-    CAMERA.changeWidthHeight(CLIENT_WIDTH, CLIENT_HEIGHT);
-
-    gl.viewport(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
-
-    let projectionMatrix = CAMERA.getProjMatrix();
-    let modelViewMatrix = CAMERA.getViewMatrix();
-    mat4.invert(VIEW_PROJECTION_INVERSE, CAMERA.getViewProj());
-
     registerControls();
 
     gl.useProgram(programInfo.flatShader.program);
-    gl.uniformMatrix4fv(programInfo.flatShader.uniformLocations.projectionMatrix, false, projectionMatrix);
-    gl.uniformMatrix4fv(programInfo.flatShader.uniformLocations.modelViewMatrix, false, modelViewMatrix);
 
     SCENE = new Scene(gl, DIVISION_FACTOR, UPPER_LEFT, HOVER_CUBE_COLOR);
 
@@ -321,6 +345,15 @@ function main() {
     gl.enable(gl.DEPTH_TEST);
 
     function drawScene(gl: WebGLRenderingContext) {
+
+        CLIENT_WIDTH = CANVAS.clientWidth;
+        CLIENT_HEIGHT = CANVAS.clientHeight;
+
+        CANVAS.width = CLIENT_WIDTH;
+        CANVAS.height = CLIENT_HEIGHT;
+        CAMERA.changeWidthHeight(CLIENT_WIDTH, CLIENT_HEIGHT);
+        gl.viewport(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
+
         gl.clearColor(SCENE.backgroundColor[0],
             SCENE.backgroundColor[1],
             SCENE.backgroundColor[2], 1.0);

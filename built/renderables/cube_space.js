@@ -156,9 +156,6 @@ export default class CubeSpace {
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.cubeSpaceColorBuffer);
         this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(colors), this.gl.STATIC_DRAW);
         this.cubeSpaceNumberOfVertices = vertices.length / 3;
-        console.log("Number of vertices: " + vertices.length / 3);
-        console.log("Number of colors: " + colors.length / 3);
-        console.log("Number of normals: " + normals.length / 3);
         return vec2.fromValues(yMin, yMax);
     }
 }

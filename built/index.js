@@ -21,7 +21,7 @@ let TRANSITIONING = false;
 let TRANSITION_TIME = 0;
 let PREVIOUS_TIME = 0;
 const registerControls = () => {
-    var _a;
+    var _a, _b, _c, _d;
     let mouseDown = false;
     let shiftDown = false;
     let cubePlacedInCurrentPos = false;
@@ -85,7 +85,7 @@ const registerControls = () => {
             LAYER = Math.min(DIVISION_FACTOR - 1, Math.max(0, LAYER - layerScroll));
             let currentLayer = Math.round(LAYER);
             if (prevLayer != currentLayer) {
-                LAYER_LABEL.innerHTML = "Layer: " + currentLayer.toString();
+                LAYER_LABEL.innerHTML = currentLayer.toString();
                 RENDER_HOVER_CUBE = false;
                 console.log("Setting layer to: " + currentLayer);
                 CAMERA.setEditorRef(vec3.fromValues(0.0, currentLayer / DIVISION_FACTOR, 0.0));
@@ -107,28 +107,33 @@ const registerControls = () => {
         }
     };
     const mouseDownHandler = (e) => {
-        mouseDown = true;
+        switch (e.button) {
+            case 0:
+                mouseDown = true;
+                break;
+            case 2:
+                e.preventDefault();
+                console.log("Right click");
+                return false;
+        }
     };
     const mouseUpHandler = (e) => {
-        mouseDown = false;
+        switch (e.button) {
+            case 0:
+                mouseDown = false;
+                break;
+            case 2:
+                e.preventDefault();
+                return false;
+        }
     };
     const keyDownHandler = (e) => {
         switch (e.code) {
             case "ShiftLeft":
                 shiftDown = true;
                 break;
-            case "KeyL":
-                fetch("/models/bonsai")
-                    .then((res) => {
-                    return res.text();
-                })
-                    .then((text) => {
-                    let model = JSON.parse(text);
-                    SCENE.cubeSpace.cubeSpace = model;
-                    toggleToViewer();
-                })
-                    .catch((e) => console.error(e));
-                break;
+            case "Space":
+                e.preventDefault();
         }
     };
     const keyUpHandler = (e) => {
@@ -154,7 +159,7 @@ const registerControls = () => {
         TRANSITIONING = true;
         TRANSITION_TIME = 0;
         let yRange = SCENE.cubeSpace.populateBuffers();
-        let viewerRefY = yRange[0] + yRange[1] / (2 * DIVISION_FACTOR);
+        let viewerRefY = (yRange[0] + yRange[1]) / (2 * DIVISION_FACTOR);
         CAMERA.setViewerRef(vec3.fromValues(0, viewerRefY, 0));
         CAMERA.changeToViewer();
     }
@@ -189,6 +194,35 @@ const registerControls = () => {
     document.addEventListener('keyup', keyUpHandler, false);
     document.addEventListener('coloris:pick', colorisPickHandler);
     (_a = document.getElementById("downloadButton")) === null || _a === void 0 ? void 0 : _a.addEventListener('click', downloadButtonClickHandler, false);
+    (_b = document.getElementById("closeEditorButton")) === null || _b === void 0 ? void 0 : _b.addEventListener('click', () => {
+        let editorPaneElement = document.getElementById("editorPane");
+        if (editorPaneElement != null) {
+            editorPaneElement.style.display = "none";
+        }
+    });
+    (_c = document.getElementById("openEditorButton")) === null || _c === void 0 ? void 0 : _c.addEventListener('click', () => {
+        let editorPaneElement = document.getElementById("editorPane");
+        if (editorPaneElement != null) {
+            editorPaneElement.style.display = "block";
+        }
+    });
+    (_d = document.getElementById("modelLoadButton")) === null || _d === void 0 ? void 0 : _d.addEventListener('click', () => {
+        let selectElement = document.getElementById("models");
+        if (selectElement != null) {
+            let modelName = selectElement.value;
+            fetch("/models/" + modelName)
+                .then((res) => {
+                return res.text();
+            })
+                .then((text) => {
+                let model = JSON.parse(text);
+                SCENE.cubeSpace.cubeSpace = model;
+                toggleToViewer();
+                SCENE.setCubeLayer(Math.round(LAYER));
+            })
+                .catch((e) => console.error(e));
+        }
+    });
 };
 function main() {
     console.log("Starting main function.");
@@ -253,15 +287,8 @@ function main() {
             gl.viewport(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
         }
     });
-    CAMERA.changeWidthHeight(CLIENT_WIDTH, CLIENT_HEIGHT);
-    gl.viewport(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
-    let projectionMatrix = CAMERA.getProjMatrix();
-    let modelViewMatrix = CAMERA.getViewMatrix();
-    mat4.invert(VIEW_PROJECTION_INVERSE, CAMERA.getViewProj());
     registerControls();
     gl.useProgram(programInfo.flatShader.program);
-    gl.uniformMatrix4fv(programInfo.flatShader.uniformLocations.projectionMatrix, false, projectionMatrix);
-    gl.uniformMatrix4fv(programInfo.flatShader.uniformLocations.modelViewMatrix, false, modelViewMatrix);
     SCENE = new Scene(gl, DIVISION_FACTOR, UPPER_LEFT, HOVER_CUBE_COLOR);
     PREVIOUS_TIME = performance.now();
     function render(now) {
@@ -272,6 +299,12 @@ function main() {
     requestAnimationFrame(render);
     gl.enable(gl.DEPTH_TEST);
     function drawScene(gl) {
+        CLIENT_WIDTH = CANVAS.clientWidth;
+        CLIENT_HEIGHT = CANVAS.clientHeight;
+        CANVAS.width = CLIENT_WIDTH;
+        CANVAS.height = CLIENT_HEIGHT;
+        CAMERA.changeWidthHeight(CLIENT_WIDTH, CLIENT_HEIGHT);
+        gl.viewport(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
         gl.clearColor(SCENE.backgroundColor[0], SCENE.backgroundColor[1], SCENE.backgroundColor[2], 1.0);
         gl.clearDepth(1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
