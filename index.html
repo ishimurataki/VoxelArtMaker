@@ -17,7 +17,10 @@
             <a class="editorButton" id="closeEditorButton">&times;</a>
             <div id="editorPaneFlexArea">
                 <div>Layer: <mark id="layerLabel">0</mark></div>
-                <div>Color: <input id="colorPicker" type="text" data-coloris value="rgb(80, 200, 120)"></div>
+                <div class="colorPickerDiv">Cube Color: <input class="colorPicker" id="cubeColor" type="text"
+                        data-coloris value="rgb(80, 200, 120)"></div>
+                <div class="colorPickerDiv">Background Color: <input class="colorPicker" id="backgroundColor"
+                        type="text" data-coloris value="rgb(38.25, 38.25, 38.25)"></div>
                 <div>Download Design: <button id="downloadButton" type="button">Click Me!</button></div>
                 <form action="">
                     <label for="model">Load a model:</label>
@@ -26,6 +29,7 @@
                         <option value="lamp">Lamp</option>
                         <option value="fire">Fire</option>
                         <option value="face">Face</option>
+                        <option value="crate">Crate</option>
                     </select><input id="modelLoadButton" type="button" value="Load!">
                 </form>
             </div>

@@ -35,6 +35,11 @@ const registerControls = () => {
     let movementSpeed = 0.01;
     let zoomSpeed = -0.008;
     let layerScrollSpeed = 0.005;
+    enum COLOR_MODE {
+        CUBE,
+        BACKGROUND
+    };
+    let colorMode = COLOR_MODE.CUBE;
 
     const moveHandler = (e: MouseEvent) => {
         if (CAMERA.getMode() == Mode.Editor) {
@@ -75,7 +80,6 @@ const registerControls = () => {
             }
         } else if (CAMERA.getMode() == Mode.Viewer) {
             if (mouseDown) {
-                console.log("MOVING CAMERA");
                 let xMove = e.movementX * movementSpeed;
                 let yMove = e.movementY * movementSpeed;
                 CAMERA.rotateTheta(xMove);
@@ -122,10 +126,6 @@ const registerControls = () => {
             case 0:
                 mouseDown = true;
                 break;
-            case 2:
-                e.preventDefault();
-                console.log("Right click");
-                return false;
         }
     }
 
@@ -134,9 +134,6 @@ const registerControls = () => {
             case 0:
                 mouseDown = false;
                 break;
-            case 2:
-                e.preventDefault();
-                return false;
         }
     }
 
@@ -156,7 +153,6 @@ const registerControls = () => {
                 shiftDown = false;
                 break;
             case "Space":
-                console.log("Toggling mode")
                 if (CAMERA.getMode() == Mode.Editor) {
                     toggleToViewer();
                 } else if (CAMERA.getMode() == Mode.Viewer) {
@@ -184,10 +180,17 @@ const registerControls = () => {
             rgbString.indexOf("(") + 1,
             rgbString.indexOf(")")
         ).split(", ");
-        HOVER_CUBE_COLOR[0] = rgbArray[0] / 255;
-        HOVER_CUBE_COLOR[1] = rgbArray[1] / 255;
-        HOVER_CUBE_COLOR[2] = rgbArray[2] / 255;
-        SCENE.setHoverCubeColor(HOVER_CUBE_COLOR);
+        if (colorMode == COLOR_MODE.CUBE) {
+            HOVER_CUBE_COLOR[0] = rgbArray[0] / 255;
+            HOVER_CUBE_COLOR[1] = rgbArray[1] / 255;
+            HOVER_CUBE_COLOR[2] = rgbArray[2] / 255;
+            SCENE.setHoverCubeColor(HOVER_CUBE_COLOR);
+        } else if (colorMode == COLOR_MODE.BACKGROUND) {
+            let newBackgroundColor = vec3.fromValues(rgbArray[0] / 255,
+                rgbArray[1] / 255,
+                rgbArray[2] / 255);
+            SCENE.setBackgroundColor(newBackgroundColor);
+        }
     }
 
     const downloadButtonClickHandler = (e: PointerEvent) => {
@@ -246,6 +249,12 @@ const registerControls = () => {
                 .catch((e) => console.error(e));
         }
     })
+    document.getElementById("cubeColor")?.addEventListener('click', () => {
+        colorMode = COLOR_MODE.CUBE;
+    });
+    document.getElementById("backgroundColor")?.addEventListener('click', () => {
+        colorMode = COLOR_MODE.BACKGROUND;
+    });
 }
 
 function main() {
@@ -302,30 +311,6 @@ function main() {
             }
         }
     }
-
-    window.addEventListener('resize', () => {
-
-        const CLIENT_WIDTH = CANVAS.clientWidth;
-        const CLIENT_HEIGHT = CANVAS.clientHeight;
-
-        const needResize = CANVAS.width !== CLIENT_WIDTH || CANVAS.height !== CLIENT_HEIGHT;
-
-        if (needResize) {
-            console.log("Resizing canvas");
-            CANVAS.width = CLIENT_WIDTH;
-            CANVAS.height = CLIENT_HEIGHT;
-
-            CAMERA.changeWidthHeight(CLIENT_WIDTH, CLIENT_HEIGHT);
-
-            let projectionMatrix = CAMERA.getProjMatrix();
-
-            gl.useProgram(programInfo.flatShader.program);
-            gl.uniformMatrix4fv(programInfo.flatShader.uniformLocations.projectionMatrix, false, projectionMatrix);
-
-            mat4.invert(VIEW_PROJECTION_INVERSE, CAMERA.getViewProj());
-            gl.viewport(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
-        }
-    });
 
     registerControls();
 

@@ -21,7 +21,7 @@ let TRANSITIONING = false;
 let TRANSITION_TIME = 0;
 let PREVIOUS_TIME = 0;
 const registerControls = () => {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e, _f;
     let mouseDown = false;
     let shiftDown = false;
     let cubePlacedInCurrentPos = false;
@@ -30,6 +30,13 @@ const registerControls = () => {
     let movementSpeed = 0.01;
     let zoomSpeed = -0.008;
     let layerScrollSpeed = 0.005;
+    let COLOR_MODE;
+    (function (COLOR_MODE) {
+        COLOR_MODE[COLOR_MODE["CUBE"] = 0] = "CUBE";
+        COLOR_MODE[COLOR_MODE["BACKGROUND"] = 1] = "BACKGROUND";
+    })(COLOR_MODE || (COLOR_MODE = {}));
+    ;
+    let colorMode = COLOR_MODE.CUBE;
     const moveHandler = (e) => {
         if (CAMERA.getMode() == Mode.Editor) {
             const rect = CANVAS.getBoundingClientRect();
@@ -65,7 +72,6 @@ const registerControls = () => {
         }
         else if (CAMERA.getMode() == Mode.Viewer) {
             if (mouseDown) {
-                console.log("MOVING CAMERA");
                 let xMove = e.movementX * movementSpeed;
                 let yMove = e.movementY * movementSpeed;
                 CAMERA.rotateTheta(xMove);
@@ -111,10 +117,6 @@ const registerControls = () => {
             case 0:
                 mouseDown = true;
                 break;
-            case 2:
-                e.preventDefault();
-                console.log("Right click");
-                return false;
         }
     };
     const mouseUpHandler = (e) => {
@@ -122,9 +124,6 @@ const registerControls = () => {
             case 0:
                 mouseDown = false;
                 break;
-            case 2:
-                e.preventDefault();
-                return false;
         }
     };
     const keyDownHandler = (e) => {
@@ -142,7 +141,6 @@ const registerControls = () => {
                 shiftDown = false;
                 break;
             case "Space":
-                console.log("Toggling mode");
                 if (CAMERA.getMode() == Mode.Editor) {
                     toggleToViewer();
                 }
@@ -166,10 +164,16 @@ const registerControls = () => {
     const colorisPickHandler = (e) => {
         let rgbString = e.detail.color;
         let rgbArray = rgbString.slice(rgbString.indexOf("(") + 1, rgbString.indexOf(")")).split(", ");
-        HOVER_CUBE_COLOR[0] = rgbArray[0] / 255;
-        HOVER_CUBE_COLOR[1] = rgbArray[1] / 255;
-        HOVER_CUBE_COLOR[2] = rgbArray[2] / 255;
-        SCENE.setHoverCubeColor(HOVER_CUBE_COLOR);
+        if (colorMode == COLOR_MODE.CUBE) {
+            HOVER_CUBE_COLOR[0] = rgbArray[0] / 255;
+            HOVER_CUBE_COLOR[1] = rgbArray[1] / 255;
+            HOVER_CUBE_COLOR[2] = rgbArray[2] / 255;
+            SCENE.setHoverCubeColor(HOVER_CUBE_COLOR);
+        }
+        else if (colorMode == COLOR_MODE.BACKGROUND) {
+            let newBackgroundColor = vec3.fromValues(rgbArray[0] / 255, rgbArray[1] / 255, rgbArray[2] / 255);
+            SCENE.setBackgroundColor(newBackgroundColor);
+        }
     };
     const downloadButtonClickHandler = (e) => {
         let cubeSpaceString = JSON.stringify(SCENE.cubeSpace.cubeSpace);
@@ -223,6 +227,12 @@ const registerControls = () => {
                 .catch((e) => console.error(e));
         }
     });
+    (_e = document.getElementById("cubeColor")) === null || _e === void 0 ? void 0 : _e.addEventListener('click', () => {
+        colorMode = COLOR_MODE.CUBE;
+    });
+    (_f = document.getElementById("backgroundColor")) === null || _f === void 0 ? void 0 : _f.addEventListener('click', () => {
+        colorMode = COLOR_MODE.BACKGROUND;
+    });
 };
 function main() {
     console.log("Starting main function.");
@@ -271,22 +281,6 @@ function main() {
             }
         }
     };
-    window.addEventListener('resize', () => {
-        const CLIENT_WIDTH = CANVAS.clientWidth;
-        const CLIENT_HEIGHT = CANVAS.clientHeight;
-        const needResize = CANVAS.width !== CLIENT_WIDTH || CANVAS.height !== CLIENT_HEIGHT;
-        if (needResize) {
-            console.log("Resizing canvas");
-            CANVAS.width = CLIENT_WIDTH;
-            CANVAS.height = CLIENT_HEIGHT;
-            CAMERA.changeWidthHeight(CLIENT_WIDTH, CLIENT_HEIGHT);
-            let projectionMatrix = CAMERA.getProjMatrix();
-            gl.useProgram(programInfo.flatShader.program);
-            gl.uniformMatrix4fv(programInfo.flatShader.uniformLocations.projectionMatrix, false, projectionMatrix);
-            mat4.invert(VIEW_PROJECTION_INVERSE, CAMERA.getViewProj());
-            gl.viewport(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
-        }
-    });
     registerControls();
     gl.useProgram(programInfo.flatShader.program);
     SCENE = new Scene(gl, DIVISION_FACTOR, UPPER_LEFT, HOVER_CUBE_COLOR);

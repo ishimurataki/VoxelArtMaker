@@ -100,6 +100,10 @@ export default class Scene {
         this.hoverCubeColor = color;
     }
 
+    setBackgroundColor(color: vec3) {
+        this.backgroundColor = color;
+    }
+
     addTile(x: number, z: number, color: vec3): boolean {
         if (x >= 0 && x < this.divisionFactor && z >= 0 && z < this.divisionFactor) {
             let tileModelMatrix = mat4.fromTranslation(mat4.create(), vec3.fromValues(
@@ -107,9 +111,7 @@ export default class Scene {
                 this.cubeSideLength * this.currentLayer,
                 this.upperLeft[1] + this.cubeSideLength * z
             ));
-            let tileColor = vec3.scale(vec3.create(), color, 0.3);
-            let backgroundInterpolated = vec3.scale(vec3.create(), this.backgroundColor, 0.7);
-            tileColor = vec3.add(vec3.create(), tileColor, backgroundInterpolated);
+            let tileColor = vec3.copy(vec3.create(), color);
             let tileRenderable = new Renderable(this.squareMesh, tileColor, tileModelMatrix);
             this.editorTiles.add(tileRenderable);
             return true;
