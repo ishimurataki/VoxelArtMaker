@@ -3,6 +3,7 @@ import Mesh from "./mesh.js";
 import Grid from "./grid.js";
 import Square from "./square.js";
 import Cube from "./cube.js";
+import SelectionBox from "./selection_box.js";
 import CubeSpace from "./cube_space.js";
 
 import { vec2, vec3, mat4 } from "../gl-matrix/index.js";
@@ -18,9 +19,16 @@ export default class Scene {
     hoverCubeColor: ReadonlyVec3;
     cubeSpace: CubeSpace;
 
+    sun: Renderable;
+    sunCenter: vec3;
+    sunCorner: vec3;
+    sunOn: boolean;
+    sunSelection: Renderable;
+
     private gridMesh: Mesh;
     private cubeMesh: Mesh;
     private squareMesh: Mesh;
+    private selectionMesh: Mesh;
     private divisionFactor: number;
     private cubeSideLength: number;
     private upperLeft: vec2;
@@ -35,6 +43,7 @@ export default class Scene {
         this.gridMesh = new Grid(gl, divisionFactor);
         this.squareMesh = new Square(gl, this.cubeSideLength);
         this.cubeMesh = new Cube(gl, this.cubeSideLength);
+        this.selectionMesh = new SelectionBox(gl, this.cubeSideLength);
 
         let gridModelMatrix = mat4.fromTranslation(mat4.create(), vec3.fromValues(upperLeft[0], 0, upperLeft[1]));
         this.grid = new Renderable(this.gridMesh, vec3.fromValues(0.3, 0.3, 0.3), gridModelMatrix);
@@ -46,6 +55,13 @@ export default class Scene {
         this.setHoverCubePosition(0, 0);
 
         this.cubeSpace = new CubeSpace(gl, this.divisionFactor, this.upperLeft);
+        this.sunOn = true;
+        this.sun = new Renderable(this.cubeMesh,
+            vec3.fromValues(1.0, 1.0, 1.0),
+            mat4.create());
+        this.sunSelection = new Renderable(this.selectionMesh, vec3.fromValues(1.0, 0.0, 0.0),
+            mat4.create());
+        this.setSunCenter(vec3.fromValues(0.0, 0.5, 0.0));
 
         this.gl = gl;
     }
@@ -153,5 +169,18 @@ export default class Scene {
             }
         }
         return false;
+    }
+
+    toggleSun(): void {
+        this.sunOn = !this.sunOn;
+        this.sun.color = this.sunOn ? vec3.fromValues(1, 1, 1) : vec3.fromValues(0.1, 0.1, 0.1);
+    }
+
+    setSunCenter(position: vec3): void {
+        this.sunCenter = position;
+        this.sunCorner = vec3.subtract(vec3.create(), this.sunCenter,
+            vec3.fromValues(this.cubeSideLength / 2, this.cubeSideLength / 2, this.cubeSideLength / 2));
+        this.sun.modelMatrix = mat4.fromTranslation(mat4.create(), this.sunCorner);
+        this.sunSelection.modelMatrix = mat4.fromTranslation(mat4.create(), this.sunCorner);
     }
 }

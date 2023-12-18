@@ -19,6 +19,8 @@ let UPPER_LEFT: vec2 = vec2.fromValues(-0.5, -0.5);
 
 let SCENE: Scene;
 let RENDER_HOVER_CUBE = false;
+let RENDER_SUN_SELECTION = false;
+let MOVE_SUN = false;
 let HOVER_CUBE_COLOR = vec3.fromValues(0.31372, 0.7843, 0.47059);
 let LAYER = 0;
 
@@ -42,20 +44,21 @@ const registerControls = () => {
     let colorMode = COLOR_MODE.CUBE;
 
     const moveHandler = (e: MouseEvent) => {
+        const rect = CANVAS.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const clipX = x / rect.width * 2 - 1;
+        const clipY = y / rect.height * -2 + 1;
+
+        const start: vec3 = vec3.transformMat4(vec3.create(), vec3.fromValues(clipX, clipY, -1), VIEW_PROJECTION_INVERSE);
+        const end: vec3 = vec3.transformMat4(vec3.create(), vec3.fromValues(clipX, clipY, 1), VIEW_PROJECTION_INVERSE);
+
+        const v: vec3 = vec3.sub(vec3.create(), end, start);
         if (CAMERA.getMode() == Mode.Editor) {
-            const rect = CANVAS.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
 
-            const clipX = x / rect.width * 2 - 1;
-            const clipY = y / rect.height * -2 + 1;
-
-            const start: vec3 = vec3.transformMat4(vec3.create(), vec3.fromValues(clipX, clipY, -1), VIEW_PROJECTION_INVERSE);
-            const end: vec3 = vec3.transformMat4(vec3.create(), vec3.fromValues(clipX, clipY, 1), VIEW_PROJECTION_INVERSE);
-
-            const v: vec3 = vec3.sub(vec3.create(), end, start);
-            const currentLayerY = Math.round(LAYER) / DIVISION_FACTOR;
-            const t = (currentLayerY - start[1]) / v[1];
+            let currentLayerY = Math.round(LAYER) / DIVISION_FACTOR;
+            let t = (currentLayerY - start[1]) / v[1];
 
             let cursorXWorld = start[0] + t * v[0];
             let cursorZWorld = start[2] + t * v[2];
@@ -79,11 +82,55 @@ const registerControls = () => {
                 cubePlacedInCurrentPos = true;
             }
         } else if (CAMERA.getMode() == Mode.Viewer) {
+            // Detect if curser is over sun box
+            let sunHit = false;
+            for (let i = 0; i < 3; i++) {
+                let t = (SCENE.sunCorner[i] - start[i]) / v[i];
+                let dim1 = (i + 1) % 3;
+                let dim2 = (i + 2) % 3;
+                let dim1Value = start[dim1] + t * v[dim1];
+                let dim2Value = start[dim2] + t * v[dim2];
+                let dim1FromSun = dim1Value - SCENE.sunCorner[dim1];
+                let dim2FromSun = dim2Value - SCENE.sunCorner[dim2];
+                if (dim1FromSun >= 0 && dim1FromSun <= SIDE_LENGTH && dim2FromSun >= 0 && dim2FromSun <= SIDE_LENGTH) {
+                    sunHit = true;
+                    break;
+                }
+                t = (SCENE.sunCorner[i] + SIDE_LENGTH - start[i]) / v[i];
+                dim1Value = start[dim1] + t * v[dim1];
+                dim2Value = start[dim2] + t * v[dim2];
+                dim1FromSun = dim1Value - SCENE.sunCorner[dim1];
+                dim2FromSun = dim2Value - SCENE.sunCorner[dim2];
+                if (dim1FromSun >= 0 && dim1FromSun <= SIDE_LENGTH && dim2FromSun >= 0 && dim2FromSun <= SIDE_LENGTH) {
+                    sunHit = true;
+                    break;
+                }
+            }
+            RENDER_SUN_SELECTION = sunHit;
+
             if (mouseDown) {
                 let xMove = e.movementX * movementSpeed;
                 let yMove = e.movementY * movementSpeed;
-                CAMERA.rotateTheta(xMove);
-                CAMERA.rotatePhi(yMove);
+                if (sunHit) {
+                    MOVE_SUN = true;
+                }
+                if (MOVE_SUN) {
+                    let a = vec3.sub(vec3.create(), SCENE.sunCenter, CAMERA.getPosition());
+                    let b = vec3.sub(vec3.create(), CAMERA.ref, CAMERA.getPosition());
+                    let projection = vec3.dot(a, b) / Math.pow(vec3.length(b), 2);
+                    let passThroughPoint = vec3.add(vec3.create(), CAMERA.getPosition(), vec3.scale(vec3.create(), b, projection));
+
+                    let tNumerator = (b[0] * (start[0] - passThroughPoint[0])) +
+                        (b[1] * (start[1] - passThroughPoint[1])) +
+                        (b[2] * (start[2] - passThroughPoint[2]));
+                    let tDenominator = (-b[0] * v[0]) - (b[1] * v[1]) - (b[2] * v[2]);
+                    let tNew = tNumerator / tDenominator;
+                    let sunPosition = vec3.add(vec3.create(), start, vec3.scale(vec3.create(), v, tNew));
+                    SCENE.setSunCenter(sunPosition);
+                } else {
+                    CAMERA.rotateTheta(xMove);
+                    CAMERA.rotatePhi(yMove);
+                }
             }
         }
     }
@@ -133,6 +180,7 @@ const registerControls = () => {
         switch (e.button) {
             case 0:
                 mouseDown = false;
+                MOVE_SUN = false;
                 break;
         }
     }
@@ -220,6 +268,9 @@ const registerControls = () => {
     document.addEventListener('keyup', keyUpHandler, false);
     document.addEventListener('coloris:pick', colorisPickHandler);
     document.getElementById("downloadButton")?.addEventListener('click', downloadButtonClickHandler, false);
+    document.getElementById("toggleSunButton")?.addEventListener('click', () => {
+        SCENE.toggleSun();
+    })
     document.getElementById("closeEditorButton")?.addEventListener('click', () => {
         let editorPaneElement = document.getElementById("editorPane");
         if (editorPaneElement != null) {
@@ -307,7 +358,9 @@ function main() {
                 modelMatrix: gl.getUniformLocation(flatShaderProgram, 'uModelMatrix'),
                 color: gl.getUniformLocation(flatShaderProgram, 'uColor'),
                 useUniformColor: gl.getUniformLocation(flatShaderProgram, 'uUseUniformColor'),
-                cameraPosition: gl.getUniformLocation(flatShaderProgram, 'uCameraPosition')
+                cameraPosition: gl.getUniformLocation(flatShaderProgram, 'uCameraPosition'),
+                sunPosition: gl.getUniformLocation(flatShaderProgram, 'uSunPosition'),
+                sunColor: gl.getUniformLocation(flatShaderProgram, 'uSunColor')
             }
         }
     }
@@ -327,9 +380,9 @@ function main() {
     }
     requestAnimationFrame(render);
 
-    gl.enable(gl.DEPTH_TEST);
-
     function drawScene(gl: WebGLRenderingContext) {
+
+        gl.enable(gl.DEPTH_TEST);
 
         CLIENT_WIDTH = CANVAS.clientWidth;
         CLIENT_HEIGHT = CANVAS.clientHeight;
@@ -399,7 +452,10 @@ function main() {
             gl.drawArrays(SCENE.grid.mesh.drawingMode, 0, SCENE.grid.mesh.vertices.length / 3);
         }
         else if (CAMERA.getMode() == Mode.Viewer) {
+            gl.uniform3fv(programInfo.flatShader.uniformLocations.sunColor, SCENE.sun.color);
+            gl.uniform3fv(programInfo.flatShader.uniformLocations.sunPosition, SCENE.sunCenter);
             gl.uniform1i(programInfo.flatShader.uniformLocations.useUniformColor, 0);
+
             // Draw cube space
             gl.bindBuffer(gl.ARRAY_BUFFER, SCENE.cubeSpace.cubeSpacePositionBuffer);
             gl.vertexAttribPointer(programInfo.flatShader.attribLocations.vertexPosition, 3, gl.FLOAT, false, 0, 0);
@@ -414,6 +470,26 @@ function main() {
             gl.drawArrays(gl.TRIANGLES, 0, SCENE.cubeSpace.cubeSpaceNumberOfVertices);
             gl.disableVertexAttribArray(programInfo.flatShader.attribLocations.vertexNormal);
             gl.disableVertexAttribArray(programInfo.flatShader.attribLocations.vertexColor);
+
+            // Draw sun
+            gl.uniform1i(programInfo.flatShader.uniformLocations.useUniformColor, 1);
+            gl.bindBuffer(gl.ARRAY_BUFFER, SCENE.sun.mesh.positionBuffer);
+            gl.vertexAttribPointer(programInfo.flatShader.attribLocations.vertexPosition, 3, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(programInfo.flatShader.attribLocations.vertexPosition);
+            gl.uniform3fv(programInfo.flatShader.uniformLocations.color, SCENE.sun.color);
+            gl.uniformMatrix4fv(programInfo.flatShader.uniformLocations.modelMatrix, false, SCENE.sun.modelMatrix);
+            gl.drawArrays(SCENE.sun.mesh.drawingMode, 0, SCENE.sun.mesh.vertices.length / 3);
+
+            // Draw sun selection
+            if (RENDER_SUN_SELECTION) {
+                gl.disable(gl.DEPTH_TEST);
+                gl.bindBuffer(gl.ARRAY_BUFFER, SCENE.sunSelection.mesh.positionBuffer);
+                gl.vertexAttribPointer(programInfo.flatShader.attribLocations.vertexPosition, 3, gl.FLOAT, false, 0, 0);
+                gl.enableVertexAttribArray(programInfo.flatShader.attribLocations.vertexPosition);
+                gl.uniform3fv(programInfo.flatShader.uniformLocations.color, SCENE.sunSelection.color);
+                gl.uniformMatrix4fv(programInfo.flatShader.uniformLocations.modelMatrix, false, SCENE.sunSelection.modelMatrix);
+                gl.drawArrays(SCENE.sunSelection.mesh.drawingMode, 0, SCENE.sunSelection.mesh.vertices.length / 3);
+            }
         }
     }
 }

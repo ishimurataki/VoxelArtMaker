@@ -2,12 +2,6 @@ import Mesh from "./mesh.js";
 export default class Square extends Mesh {
     constructor(glContext, sideLength = 1.0) {
         super();
-        // this.vertices = [
-        //     0.0, 0.0, 0.0,
-        //     sideLength, 0.0, 0.0,
-        //     sideLength, 0.0, sideLength,
-        //     0.0, 0.0, sideLength
-        // ];
         let p0 = sideLength * 0.2;
         let p1 = sideLength * 0.8;
         this.vertices = [
