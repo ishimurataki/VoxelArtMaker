@@ -1,7 +1,7 @@
 import { vec2 } from "../gl-matrix/index.js";
 
 export default class CubeSpace {
-    cubeSpace: (vec3 | undefined)[];
+    readonly cubeSpace: (vec3 | undefined)[];
     cubeSpacePositionBuffer: WebGLBuffer | null;
     cubeSpaceNormalBuffer: WebGLBuffer | null;
     cubeSpaceColorBuffer: WebGLBuffer | null;
@@ -11,6 +11,9 @@ export default class CubeSpace {
     upperLeft: vec2;
     gl: WebGLRenderingContext
 
+    cubeSpaceTextureData: number[] = [];
+    cubeSpaceTexture: WebGLTexture | null;
+
     constructor(gl: WebGLRenderingContext, divisionFactor: number, upperLeft: vec2) {
         this.cubeSpace = new Array<vec3>(Math.pow(divisionFactor, 3));
         this.cubeSpace.fill(undefined);
@@ -18,6 +21,9 @@ export default class CubeSpace {
         this.cubeSideLength = 1 / this.divisionFactor;
         this.upperLeft = upperLeft;
         this.gl = gl;
+
+        this.cubeSpaceTextureData = new Array<number>(4 * Math.pow(divisionFactor, 3));
+        this.cubeSpaceTextureData.fill(0);
     }
 
     private getCubeIndex(x: number, y: number, z: number): number {
@@ -25,11 +31,41 @@ export default class CubeSpace {
     }
 
     setCube(x: number, y: number, z: number, color: vec3): void {
-        this.cubeSpace[this.getCubeIndex(x, y, z)] = color;
+        console.log("SetCube called with: " + "(" + x + ", " + y + ", " + z + ")");
+        let cubeIndex = this.getCubeIndex(x, y, z);
+        this.cubeSpace[cubeIndex] = color;
+        this.cubeSpaceTextureData[4 * cubeIndex] = 255 * color[0];
+        this.cubeSpaceTextureData[4 * cubeIndex + 1] = 255 * color[1];
+        this.cubeSpaceTextureData[4 * cubeIndex + 2] = 255 * color[2];
+        this.cubeSpaceTextureData[4 * cubeIndex + 3] = 255;
     }
 
     deleteCube(x: number, y: number, z: number): void {
-        this.cubeSpace[this.getCubeIndex(x, y, z)] = undefined;
+        let cubeIndex = this.getCubeIndex(x, y, z);
+        this.cubeSpace[cubeIndex] = undefined;
+        this.cubeSpaceTextureData[4 * cubeIndex + 3] = 0;
+    }
+
+    setCubeSpace(cubeSpace: (vec3 | undefined)[]) {
+        for (let y = 0; y < this.divisionFactor; y++) {
+            let yIndex = y * Math.pow(this.divisionFactor, 2);
+            for (let x = 0; x < this.divisionFactor; x++) {
+                let xIndex = x * this.divisionFactor;
+                for (let z = 0; z < this.divisionFactor; z++) {
+                    let cubeIndex = yIndex + xIndex + z;
+                    let color = cubeSpace[cubeIndex];
+                    this.cubeSpace[cubeIndex] = color;
+                    if (color != undefined) {
+                        this.cubeSpaceTextureData[4 * cubeIndex] = 255 * color[0];
+                        this.cubeSpaceTextureData[4 * cubeIndex + 1] = 255 * color[1];
+                        this.cubeSpaceTextureData[4 * cubeIndex + 2] = 255 * color[2];
+                        this.cubeSpaceTextureData[4 * cubeIndex + 3] = 255;
+                    } else {
+                        this.cubeSpaceTextureData[4 * cubeIndex + 3] = 0;
+                    }
+                }
+            }
+        }
     }
 
     populateBuffers(): vec2 {
@@ -212,5 +248,27 @@ export default class CubeSpace {
         this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(colors), this.gl.STATIC_DRAW);
         this.cubeSpaceNumberOfVertices = vertices.length / 3;
         return vec2.fromValues(yMin, yMax);
+    }
+
+    populateTexture() {
+        console.log("populateTexture called");
+        this.cubeSpaceTexture = this.gl.createTexture();
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.cubeSpaceTexture);
+
+        let level = 0;
+        let internalFormat = this.gl.RGBA;
+        let width = Math.pow(this.divisionFactor, 2);
+        let height = this.divisionFactor;
+        let border = 0;
+        let format = this.gl.RGBA;
+        let type = this.gl.UNSIGNED_BYTE;
+
+        this.gl.texImage2D(this.gl.TEXTURE_2D, level, internalFormat, width, height, border, format, type,
+            new Uint8Array(this.cubeSpaceTextureData));
+
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
     }
 }
