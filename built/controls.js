@@ -1,3 +1,4 @@
+import { TracerMaterial } from "./global_state.js";
 import { vec3 } from "./gl-matrix/index.js";
 import { Mode } from "./polar_camera.js";
 var COLOR_MODE;
@@ -103,6 +104,7 @@ export default class Controls {
                         this.camera.rotateTheta(xMove);
                         this.camera.rotatePhi(yMove);
                     }
+                    this.globalState.sampleCount = 0;
                 }
             }
         };
@@ -137,6 +139,7 @@ export default class Controls {
             if (this.camera.getMode() == Mode.Viewer) {
                 let zoom = this.zoomSpeed * e.deltaY;
                 this.camera.zoom(zoom);
+                this.globalState.sampleCount = 0;
             }
             else if (this.camera.getMode() == Mode.Editor) {
                 let prevLayer = Math.round(this.layer);
@@ -259,13 +262,27 @@ export default class Controls {
         };
         this.rayTraceButtonClickHandler = () => {
             this.globalState.rayTrace = !this.globalState.rayTrace;
+            this.globalState.sampleCount = 0;
+        };
+        this.tracerMaterialChangeHandler = () => {
+            let selectElement = document.getElementById("tracerMaterial");
+            if (selectElement != null) {
+                let materialName = selectElement.value;
+                if (materialName == "diffuse") {
+                    this.globalState.tracerMaterial = TracerMaterial.Diffuse;
+                }
+                else if (materialName == "mirror") {
+                    this.globalState.tracerMaterial = TracerMaterial.Mirror;
+                }
+            }
+            this.globalState.sampleCount = 0;
         };
         this.globalState = globalState;
         this.camera = camera;
         this.scene = scene;
     }
     registerControls() {
-        var _a, _b, _c, _d, _e, _f, _g, _h;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j;
         this.globalState.canvas.addEventListener('mousemove', this.moveHandler, false);
         this.globalState.canvas.addEventListener('click', this.clickHandler, false);
         this.globalState.canvas.addEventListener('mousedown', this.mouseDownHandler, false);
@@ -282,5 +299,6 @@ export default class Controls {
         (_f = document.getElementById("cubeColor")) === null || _f === void 0 ? void 0 : _f.addEventListener('click', this.cubeColorClickHandler, false);
         (_g = document.getElementById("backgroundColor")) === null || _g === void 0 ? void 0 : _g.addEventListener('click', this.backgroundColorClickHandler, false);
         (_h = document.getElementById("rayTraceButton")) === null || _h === void 0 ? void 0 : _h.addEventListener('click', this.rayTraceButtonClickHandler, false);
+        (_j = document.getElementById("tracerMaterial")) === null || _j === void 0 ? void 0 : _j.addEventListener('change', this.tracerMaterialChangeHandler, false);
     }
 }

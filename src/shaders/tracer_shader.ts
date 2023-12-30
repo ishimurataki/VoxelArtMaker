@@ -13,10 +13,19 @@ export const tracerFragmentSource = (divisionFactor: number) => {
     return `
     precision highp float;
     uniform vec3 uEye;
+    uniform float uTimeSinceStart; 
+    uniform float uTextureWeight;
+    uniform vec3 uLightPos;
+    uniform sampler2D uRenderTexture;
     uniform sampler2D uCubeSpaceTexture;
+    uniform float uWidth;
+    uniform float uHeight;
+    uniform vec3 uBackgroundColor;
+    uniform int uTracerMaterial;
     varying vec3 initialRay;
 
     vec2 intersectCube(vec3 origin, vec3 ray, vec3 cubeMin, vec3 cubeMax) {
+
         vec3 t1 = (cubeMin - origin) / ray;
         vec3 t2 = (cubeMax - origin) / ray;
         
@@ -29,38 +38,94 @@ export const tracerFragmentSource = (divisionFactor: number) => {
         return vec2(tNear, tFar);
     }
 
+    float random(vec3 scale, float seed) {
+        return fract(sin(dot(gl_FragCoord.xyz + seed, scale)) * 43758.5453 + seed);
+    }
+
+    vec3 cosineWeightedDirection(float seed, vec3 normal) {
+        float u = random(vec3(12.9898, 78.233, 151.7182), seed);
+        float v = random(vec3(63.7264, 10.873, 623.6736), seed);
+        float r = sqrt(u);
+        float angle = 6.283185307179586 * v;
+        // compute basis from normal
+        vec3 sdir, tdir;
+        if (abs(normal.x) < .5) {
+            sdir = cross(normal, vec3(1,0,0));
+        } else {
+            sdir = cross(normal, vec3(0,1,0));
+        }
+        tdir = cross(normal, sdir);
+        return r * cos(angle) * sdir + r * sin(angle) * tdir + sqrt(1.0 - u) * normal;
+    }
+
+    vec3 uniformlyRandomDirection(float seed) {
+        float u = random(vec3(12.9898, 78.233, 151.7182), seed);
+        float v = random(vec3(63.7264, 10.873, 623.6736), seed);
+        float z = 1.0 - 2.0 * u;
+        float r = sqrt(1.0 - z * z);
+        float angle = 6.283185307179586 * v;
+        return vec3(r * cos(angle), r * sin(angle), z);
+    }
+
+    vec3 uniformlyRandomVector(float seed) {
+        return uniformlyRandomDirection(seed) * sqrt(random(vec3(36.7539, 50.3658, 306.2759), seed));
+    }
+
     void main() {
         int divisionFactor = ${divisionFactor.toFixed(0)};
-        vec3 initialRayNormalized = normalize(initialRay);
         vec3 cubeMin = vec3(-0.5, 0.0, -0.5);
         vec3 cubeMax = vec3(0.5, 1.0, 0.5);
-        vec2 tCube = intersectCube(uEye, initialRayNormalized, cubeMin, cubeMax);
+        vec3 accumulatedColor = vec3(0.0);
+        vec3 ray = normalize(initialRay);
+        vec3 origin = uEye;
+        vec3 colorMask = vec3(1.0);
+        float ambienceStrength = 0.25;
+        float diffuseStrength = 0.75;
+        bool atLeastOneHit = false;
 
-        if (tCube.x < tCube.y) {
-            int stepX = (initialRayNormalized.x > 0.0) ? 1 : -1;
-            int stepY = (initialRayNormalized.y > 0.0) ? 1 : -1;
-            int stepZ = (initialRayNormalized.z > 0.0) ? 1 : -1;
+        for (int bounce = 0; bounce < 5; bounce++) {
+            vec2 tCube = intersectCube(origin, ray, cubeMin, cubeMax);
+            if (tCube.x > tCube.y) {
+                accumulatedColor = uBackgroundColor;
+                break;
+            }
+            float t = max(0.0, tCube.x);
+            float initialT = t;
+            int stepX = (ray.x > 0.0) ? 1 : -1;
+            int stepY = (ray.y > 0.0) ? 1 : -1;
+            int stepZ = (ray.z > 0.0) ? 1 : -1;
 
-            vec3 intersectPoint = (tCube.x + 0.00001) * initialRayNormalized + uEye;
+            vec3 intersectPoint = (t + 0.00001) * ray + origin;
             vec3 intersectPointLocalized = float(divisionFactor) * vec3(intersectPoint.x + 0.5, intersectPoint.y, intersectPoint.z + 0.5);
 
             int x = int(intersectPointLocalized.x);
             int y = int(intersectPointLocalized.y);
             int z = int(intersectPointLocalized.z);
 
+            int hitDim;
+            if (abs(intersectPointLocalized.x - float(x)) < 0.0001) {
+                hitDim = 1;
+            } else if (abs(intersectPointLocalized.y - float(y)) < 0.0001) {
+                hitDim = 2;
+            } else {
+                hitDim = 3;
+            }
+
             float nextX = (stepX == 1) ? ceil(intersectPointLocalized.x) : floor(intersectPointLocalized.x);
             float nextY = (stepY == 1) ? ceil(intersectPointLocalized.y) : floor(intersectPointLocalized.y);
             float nextZ = (stepZ == 1) ? ceil(intersectPointLocalized.z) : floor(intersectPointLocalized.z);
 
-            float tMaxX = (nextX - intersectPointLocalized.x) / initialRayNormalized.x;
-            float tMaxY = (nextY - intersectPointLocalized.y) / initialRayNormalized.y;
-            float tMaxZ = (nextZ - intersectPointLocalized.z) / initialRayNormalized.z;
+            float tMaxX = (nextX - intersectPointLocalized.x) / ray.x;
+            float tMaxY = (nextY - intersectPointLocalized.y) / ray.y;
+            float tMaxZ = (nextZ - intersectPointLocalized.z) / ray.z;
 
-            float tDeltaX = float(stepX) / initialRayNormalized.x;
-            float tDeltaY = float(stepY) / initialRayNormalized.y;
-            float tDeltaZ = float(stepZ) / initialRayNormalized.z;
+            float tDeltaX = float(stepX) / ray.x;
+            float tDeltaY = float(stepY) / ray.y;
+            float tDeltaZ = float(stepZ) / ray.z;
 
             bool found = false;
+            vec3 surfaceColor = uBackgroundColor;
+            vec3 normal; 
             for (int i = 0; i < ${(divisionFactor * 3).toFixed(0)}; i++) {
                 if (x >= divisionFactor || x < 0 || 
                     y >= divisionFactor || y < 0 || 
@@ -70,37 +135,74 @@ export const tracerFragmentSource = (divisionFactor: number) => {
                 float textureX = float(divisionFactor * x + z) / 
                     float(divisionFactor * divisionFactor);
                 float textureY = float(y) / float(divisionFactor);
-
                 vec4 cubeColor = texture2D(uCubeSpaceTexture, vec2(textureX, textureY));
                 if (cubeColor.a == 1.0) {
-                    gl_FragColor = cubeColor;
                     found = true;
+                    intersectPoint = t * ray + origin;
+                    surfaceColor = cubeColor.rgb;
+                    if (hitDim == 1) {
+                        normal = (stepX < 0) ? vec3(1.0, 0.0, 0.0) : vec3(-1.0, 0.0, 0.0); 
+                    } else if (hitDim == 2) {
+                        normal = (stepY < 0) ? vec3(0.0, 1.0, 0.0) : vec3(0.0, -1.0, 0.0); 
+                    } else {
+                        normal = (stepZ < 0) ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 0.0, -1.0); 
+                    }
+                    if (uTracerMaterial == 0) {
+                        float seed = uTimeSinceStart - (1000.0 * floor(uTimeSinceStart / 1000.0));
+                        ray = cosineWeightedDirection(seed + float(bounce), normal);
+                    } else {
+                        ray = reflect(ray, normal);
+                    }
                     break;
                 }
                 if (tMaxX < tMaxY) {
                     if (tMaxX < tMaxZ) {
                         x += stepX;
+                        t = initialT + (tMaxX / float(divisionFactor));
                         tMaxX = tMaxX + tDeltaX;
+                        hitDim = 1;
                     } else {
                         z += stepZ;
+                        t = initialT + (tMaxZ / float(divisionFactor));
                         tMaxZ = tMaxZ + tDeltaZ;
+                        hitDim = 3;
                     }
                 } else {
                     if (tMaxY < tMaxZ) {
                         y += stepY;
+                        t = initialT + (tMaxY / float(divisionFactor));
                         tMaxY = tMaxY + tDeltaY;
+                        hitDim = 2;
                     } else {
                         z += stepZ;
+                        t = initialT + (tMaxZ / float(divisionFactor));
                         tMaxZ = tMaxZ + tDeltaZ;
+                        hitDim = 3;
                     }
                 }
             }
-            if (!found) {
-                gl_FragColor = vec4(0, 0, 0, 1);
+            if (found) {
+                atLeastOneHit = true;
+            } else {
+                break;
             }
-        } else {
-            gl_FragColor = vec4(0, 0, 0, 1);
+
+            vec3 toLight = uLightPos + (uniformlyRandomVector(uTimeSinceStart - 53.0) * 0.1) - intersectPoint;
+            float diffuse = max(0.0, dot(normalize(toLight), normal));
+
+            colorMask *= surfaceColor;
+            accumulatedColor += colorMask * ambienceStrength;
+            accumulatedColor += colorMask * diffuseStrength * diffuse;
+
+            origin = intersectPoint;
         }
+
+        if (!atLeastOneHit) {
+            accumulatedColor = uBackgroundColor;
+        }
+        vec2 texCoord = vec2(gl_FragCoord.x / uWidth, gl_FragCoord.y / uHeight);
+        vec3 texture = texture2D(uRenderTexture, texCoord).rgb;
+        gl_FragColor = vec4(mix(accumulatedColor, texture, uTextureWeight), 1.0);
     }
 `
 }

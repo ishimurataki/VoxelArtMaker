@@ -6,10 +6,11 @@ import { vec2 } from "./gl-matrix/index.js";
 import { PolarCamera } from "./polar_camera.js";
 import Scene from "./renderables/scene.js";
 import Controls from "./controls.js";
-import GlobalState from "./global_state.js";
+import { GlobalState } from "./global_state.js";
 import Renderer from "./renderer.js";
+import { renderFragmentSource, renderVertexSource } from "./shaders/render_shader.js";
 
-function main() {
+const main = () => {
     console.log("Starting main function.");
 
     const canvasMaybeNull: HTMLCanvasElement | null = document.querySelector("#glCanvas");
@@ -37,23 +38,35 @@ function main() {
 
     const plainShaderProgram: WebGLShader | null = initShaderProgram(gl, plainVertexShaderSource, plainFragmentShaderSource);
     if (plainShaderProgram == null) {
-        alert("Could not compile flat shader program");
+        alert("Could not compile plain shader program");
         return;
     }
 
-    const tracerShaderProgram: WebGLShader | null = initShaderProgram(gl, tracerVertexSource, tracerFragmentSource(divisionFactor));
+    const tracerShaderProgram: WebGLShader | null = initShaderProgram(gl,
+        tracerVertexSource,
+        tracerFragmentSource(divisionFactor));
     if (tracerShaderProgram == null) {
         alert("Could not compile tracer shader program");
         return;
     }
 
-    const renderer = new Renderer(gl, globalState, tracerShaderProgram, plainShaderProgram, camera, scene);
+    const renderShaderProgram: WebGLShader | null = initShaderProgram(gl, renderVertexSource, renderFragmentSource);
+    if (renderShaderProgram == null) {
+        alert("Could not compile render shader program");
+        return;
+    }
+
+    const renderer = new Renderer(gl, globalState, tracerShaderProgram, renderShaderProgram, plainShaderProgram, camera, scene);
+
+    window.onresize = () => {
+        renderer.resizeTracerTextures();
+    }
 
     gl.useProgram(plainShaderProgram);
 
-    function render(now: number) {
+    const render = (now: number) => {
         renderer.tick(now);
-        renderer.render();
+        renderer.render(now);
         globalState.previousTime = now;
         requestAnimationFrame(render);
     }

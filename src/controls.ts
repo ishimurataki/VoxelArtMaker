@@ -1,4 +1,4 @@
-import GlobalState from "./global_state.js";
+import { GlobalState, TracerMaterial } from "./global_state.js";
 import { vec3 } from "./gl-matrix/index.js";
 import { PolarCamera, Mode } from "./polar_camera.js";
 import Scene from "./renderables/scene.js";
@@ -49,6 +49,7 @@ export default class Controls {
         document.getElementById("cubeColor")?.addEventListener('click', this.cubeColorClickHandler, false);
         document.getElementById("backgroundColor")?.addEventListener('click', this.backgroundColorClickHandler, false);
         document.getElementById("rayTraceButton")?.addEventListener('click', this.rayTraceButtonClickHandler, false);
+        document.getElementById("tracerMaterial")?.addEventListener('change', this.tracerMaterialChangeHandler, false);
     }
 
     private moveHandler = (e: MouseEvent) => {
@@ -141,6 +142,7 @@ export default class Controls {
                     this.camera.rotateTheta(xMove);
                     this.camera.rotatePhi(yMove);
                 }
+                this.globalState.sampleCount = 0;
             }
         }
     }
@@ -178,6 +180,7 @@ export default class Controls {
         if (this.camera.getMode() == Mode.Viewer) {
             let zoom = this.zoomSpeed * e.deltaY;
             this.camera.zoom(zoom);
+            this.globalState.sampleCount = 0;
         } else if (this.camera.getMode() == Mode.Editor) {
             let prevLayer = Math.round(this.layer);
             let layerScroll = this.layerScrollSpeed * e.deltaY;
@@ -321,5 +324,19 @@ export default class Controls {
 
     private rayTraceButtonClickHandler = () => {
         this.globalState.rayTrace = !this.globalState.rayTrace;
+        this.globalState.sampleCount = 0;
+    }
+
+    private tracerMaterialChangeHandler = () => {
+        let selectElement = document.getElementById("tracerMaterial");
+        if (selectElement != null) {
+            let materialName = (selectElement as HTMLSelectElement).value;
+            if (materialName == "diffuse") {
+                this.globalState.tracerMaterial = TracerMaterial.Diffuse;
+            } else if (materialName == "mirror") {
+                this.globalState.tracerMaterial = TracerMaterial.Mirror;
+            }
+        }
+        this.globalState.sampleCount = 0;
     }
 }

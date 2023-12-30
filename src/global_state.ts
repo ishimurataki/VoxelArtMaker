@@ -1,6 +1,11 @@
 import { vec2, mat4 } from "./gl-matrix/index.js";
 
-export default class GlobalState {
+export enum TracerMaterial {
+    Diffuse,
+    Mirror
+}
+
+export class GlobalState {
     canvas: HTMLCanvasElement;
     clientWidth: number;
     clientHeight: number;
@@ -19,6 +24,8 @@ export default class GlobalState {
     previousTime: number = performance.now();
 
     rayTrace: boolean = false;
+    sampleCount: number = 0;
+    tracerMaterial: TracerMaterial = TracerMaterial.Diffuse;
 
     constructor(canvas: HTMLCanvasElement, divisionFactor: number, upperLeft: vec2) {
         this.canvas = canvas;

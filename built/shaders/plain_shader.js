@@ -36,7 +36,7 @@ export const plainFragmentShaderSource = `
         if (uUseUniformColor == 1) { 
             gl_FragColor = vec4(uColor, 1.0);
         } else {
-            float ambientStrength = 0.5;
+            float ambientStrength = 0.25;
             vec3 ambient = ambientStrength * uSunColor;
 
             vec3 norm = normalize(vNorm);

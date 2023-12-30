@@ -5,9 +5,10 @@ import { vec2 } from "./gl-matrix/index.js";
 import { PolarCamera } from "./polar_camera.js";
 import Scene from "./renderables/scene.js";
 import Controls from "./controls.js";
-import GlobalState from "./global_state.js";
+import { GlobalState } from "./global_state.js";
 import Renderer from "./renderer.js";
-function main() {
+import { renderFragmentSource, renderVertexSource } from "./shaders/render_shader.js";
+const main = () => {
     console.log("Starting main function.");
     const canvasMaybeNull = document.querySelector("#glCanvas");
     if (canvasMaybeNull == null) {
@@ -30,7 +31,7 @@ function main() {
     controls.registerControls();
     const plainShaderProgram = initShaderProgram(gl, plainVertexShaderSource, plainFragmentShaderSource);
     if (plainShaderProgram == null) {
-        alert("Could not compile flat shader program");
+        alert("Could not compile plain shader program");
         return;
     }
     const tracerShaderProgram = initShaderProgram(gl, tracerVertexSource, tracerFragmentSource(divisionFactor));
@@ -38,14 +39,22 @@ function main() {
         alert("Could not compile tracer shader program");
         return;
     }
-    const renderer = new Renderer(gl, globalState, tracerShaderProgram, plainShaderProgram, camera, scene);
+    const renderShaderProgram = initShaderProgram(gl, renderVertexSource, renderFragmentSource);
+    if (renderShaderProgram == null) {
+        alert("Could not compile render shader program");
+        return;
+    }
+    const renderer = new Renderer(gl, globalState, tracerShaderProgram, renderShaderProgram, plainShaderProgram, camera, scene);
+    window.onresize = () => {
+        renderer.resizeTracerTextures();
+    };
     gl.useProgram(plainShaderProgram);
-    function render(now) {
+    const render = (now) => {
         renderer.tick(now);
-        renderer.render();
+        renderer.render(now);
         globalState.previousTime = now;
         requestAnimationFrame(render);
-    }
+    };
     requestAnimationFrame(render);
-}
+};
 window.onload = main;

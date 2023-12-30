@@ -7,7 +7,7 @@ import SelectionBox from "./selection_box.js";
 import CubeSpace from "./cube_space.js";
 
 import { vec2, vec3, mat4 } from "../gl-matrix/index.js";
-import GlobalState from "../global_state.js";
+import { GlobalState } from "../global_state.js";
 
 export default class Scene {
     gl: WebGLRenderingContext;

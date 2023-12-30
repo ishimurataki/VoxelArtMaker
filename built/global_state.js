@@ -1,5 +1,10 @@
 import { mat4 } from "./gl-matrix/index.js";
-export default class GlobalState {
+export var TracerMaterial;
+(function (TracerMaterial) {
+    TracerMaterial[TracerMaterial["Diffuse"] = 0] = "Diffuse";
+    TracerMaterial[TracerMaterial["Mirror"] = 1] = "Mirror";
+})(TracerMaterial || (TracerMaterial = {}));
+export class GlobalState {
     constructor(canvas, divisionFactor, upperLeft) {
         this.renderHoverCube = false;
         this.renderSunSelection = false;
@@ -8,6 +13,8 @@ export default class GlobalState {
         this.transitionTime = 0;
         this.previousTime = performance.now();
         this.rayTrace = false;
+        this.sampleCount = 0;
+        this.tracerMaterial = TracerMaterial.Diffuse;
         this.canvas = canvas;
         this.clientWidth = canvas.clientWidth;
         this.clientHeight = canvas.clientHeight;

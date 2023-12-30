@@ -6,7 +6,7 @@ var ShaderMode;
     ShaderMode[ShaderMode["Tracer"] = 1] = "Tracer";
 })(ShaderMode || (ShaderMode = {}));
 export default class Renderer {
-    constructor(gl, globalState, tracerShaderProgram, plainShaderProgram, camera, scene) {
+    constructor(gl, globalState, tracerShaderProgram, renderShaderProgram, plainShaderProgram, camera, scene) {
         this.activeShader = ShaderMode.Plain;
         this.screen00 = vec4.fromValues(-1, -1, 0, 1);
         this.screen01 = vec4.fromValues(-1, +1, 0, 1);
@@ -15,6 +15,7 @@ export default class Renderer {
         this.gl = gl;
         this.globalState = globalState;
         this.tracerShaderProgram = tracerShaderProgram;
+        this.renderShaderProgram = renderShaderProgram;
         this.plainShaderProgram = plainShaderProgram;
         this.camera = camera;
         this.scene = scene;
@@ -45,7 +46,23 @@ export default class Renderer {
                 ray10: gl.getUniformLocation(tracerShaderProgram, "uRay10"),
                 ray11: gl.getUniformLocation(tracerShaderProgram, "uRay11"),
                 eye: gl.getUniformLocation(tracerShaderProgram, "uEye"),
-                cubeSpaceTexture: gl.getUniformLocation(tracerShaderProgram, "uCubeSpaceTexture")
+                renderTexture: gl.getUniformLocation(tracerShaderProgram, "uRenderTexture"),
+                cubeSpaceTexture: gl.getUniformLocation(tracerShaderProgram, "uCubeSpaceTexture"),
+                timeSinceStart: gl.getUniformLocation(tracerShaderProgram, "uTimeSinceStart"),
+                textureWeight: gl.getUniformLocation(tracerShaderProgram, "uTextureWeight"),
+                sunPosition: gl.getUniformLocation(tracerShaderProgram, "uLightPos"),
+                width: gl.getUniformLocation(tracerShaderProgram, "uWidth"),
+                height: gl.getUniformLocation(tracerShaderProgram, "uHeight"),
+                backgroundColor: gl.getUniformLocation(tracerShaderProgram, "uBackgroundColor"),
+                tracerMaterial: gl.getUniformLocation(tracerShaderProgram, "uTracerMaterial")
+            }
+        };
+        this.renderProgramInfo = {
+            attribLocations: {
+                vertexPosition: gl.getAttribLocation(renderShaderProgram, "aVertexPosition")
+            },
+            uniformLocations: {
+                renderTexture: gl.getUniformLocation(renderShaderProgram, "uRenderTexture")
             }
         };
         // ALL TRACER STUFF
@@ -58,7 +75,34 @@ export default class Renderer {
         this.tracerVertexBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.tracerVertexBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        this.tracerFrameBuffer = gl.createFramebuffer();
+        this.tracerTextures = [];
+        for (let i = 0; i < 2; i++) {
+            this.tracerTextures.push(gl.createTexture());
+            gl.bindTexture(gl.TEXTURE_2D, this.tracerTextures[i]);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.globalState.clientWidth, this.globalState.clientHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            gl.bindTexture(gl.TEXTURE_2D, null);
+        }
         //
+    }
+    resizeTracerTextures() {
+        console.log("Resizing textures: " + this.globalState.clientWidth + " x " + this.globalState.clientHeight);
+        this.tracerFrameBuffer = this.gl.createFramebuffer();
+        this.tracerTextures = [];
+        for (let i = 0; i < 2; i++) {
+            this.tracerTextures.push(this.gl.createTexture());
+            this.gl.bindTexture(this.gl.TEXTURE_2D, this.tracerTextures[i]);
+            this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
+            this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
+            this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+            this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
+            this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.globalState.clientWidth, this.globalState.clientHeight, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null);
+            this.gl.bindTexture(this.gl.TEXTURE_2D, null);
+        }
     }
     tick(currentTime) {
         let deltaTime = currentTime - this.globalState.previousTime;
@@ -70,9 +114,10 @@ export default class Renderer {
             }
             this.camera.transition(a);
             this.globalState.transitionTime += deltaTime;
+            this.globalState.sampleCount = 0;
         }
     }
-    render() {
+    render(currentTime) {
         this.gl.enable(this.gl.DEPTH_TEST);
         this.globalState.clientWidth = this.globalState.canvas.clientWidth;
         this.globalState.clientHeight = this.globalState.canvas.clientHeight;
@@ -143,7 +188,7 @@ export default class Renderer {
                     this.gl.useProgram(this.tracerShaderProgram);
                     this.activeShader = ShaderMode.Tracer;
                 }
-                this.renderViewerRayTraced(viewProjectionMatrix);
+                this.renderViewerRayTraced(viewProjectionMatrix, currentTime);
             }
             else {
                 if (this.activeShader != ShaderMode.Plain) {
@@ -194,7 +239,12 @@ export default class Renderer {
             this.gl.drawArrays(this.scene.sunSelection.mesh.drawingMode, 0, this.scene.sunSelection.mesh.vertices.length / 3);
         }
     }
-    renderViewerRayTraced(viewProjectionMatrix) {
+    renderViewerRayTraced(viewProjectionMatrix, currentTime) {
+        this.gl.useProgram(this.tracerShaderProgram);
+        this.gl.uniform1f(this.tracerProgramInfo.uniformLocations.width, this.globalState.clientWidth);
+        this.gl.uniform1f(this.tracerProgramInfo.uniformLocations.height, this.globalState.clientHeight);
+        this.gl.uniform3fv(this.tracerProgramInfo.uniformLocations.backgroundColor, this.scene.backgroundColor);
+        this.gl.uniform1i(this.tracerProgramInfo.uniformLocations.tracerMaterial, this.globalState.tracerMaterial);
         this.gl.uniform3fv(this.tracerProgramInfo.uniformLocations.eye, this.camera.eye);
         let jitter = vec3.scale(vec3.create(), vec3.fromValues(Math.random() * 2 - 1, Math.random() * 2 - 1, 0), 1 / 5000);
         let inverse = mat4.invert(mat4.create(), mat4.translate(mat4.create(), viewProjectionMatrix, jitter));
@@ -214,10 +264,30 @@ export default class Renderer {
         this.gl.uniform3fv(this.tracerProgramInfo.uniformLocations.ray01, ray01);
         this.gl.uniform3fv(this.tracerProgramInfo.uniformLocations.ray10, ray10);
         this.gl.uniform3fv(this.tracerProgramInfo.uniformLocations.ray11, ray11);
-        this.gl.uniform1i(this.tracerProgramInfo.uniformLocations.cubeSpaceTexture, 0);
+        this.gl.uniform3fv(this.tracerProgramInfo.uniformLocations.sunPosition, this.scene.sunCenter);
+        this.gl.uniform1f(this.tracerProgramInfo.uniformLocations.timeSinceStart, currentTime);
+        let textureWeight = this.globalState.sampleCount / (this.globalState.sampleCount + 1);
+        this.gl.uniform1f(this.tracerProgramInfo.uniformLocations.textureWeight, textureWeight);
+        this.gl.uniform1i(this.tracerProgramInfo.uniformLocations.cubeSpaceTexture, 1);
+        this.gl.uniform1i(this.tracerProgramInfo.uniformLocations.renderTexture, 0);
+        this.gl.activeTexture(this.gl.TEXTURE1);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.scene.cubeSpace.cubeSpaceTexture);
+        this.gl.activeTexture(this.gl.TEXTURE0);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.tracerTextures[0]);
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.tracerVertexBuffer);
+        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.tracerFrameBuffer);
+        this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.TEXTURE_2D, this.tracerTextures[1], 0);
         this.gl.vertexAttribPointer(this.tracerProgramInfo.attribLocations.vertexPosition, 2, this.gl.FLOAT, false, 0, 0);
         this.gl.enableVertexAttribArray(this.tracerProgramInfo.attribLocations.vertexPosition);
         this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
+        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+        this.tracerTextures.reverse();
+        this.gl.useProgram(this.renderShaderProgram);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.tracerTextures[0]);
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.tracerVertexBuffer);
+        this.gl.vertexAttribPointer(this.renderProgramInfo.attribLocations.vertexPosition, 2, this.gl.FLOAT, false, 0, 0);
+        this.gl.enableVertexAttribArray(this.renderProgramInfo.attribLocations.vertexPosition);
+        this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
+        this.globalState.sampleCount++;
     }
 }
