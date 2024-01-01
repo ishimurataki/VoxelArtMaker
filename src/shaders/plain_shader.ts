@@ -29,6 +29,7 @@ export const plainFragmentShaderSource: string = `
     uniform vec3 uSunColor;
     uniform int uSunOn;
     uniform float uSunStrength;
+    uniform float uAmbienceStrength;
 
     varying lowp vec3 vPos;
     varying lowp vec3 vNorm;
@@ -38,8 +39,7 @@ export const plainFragmentShaderSource: string = `
         if (uUseUniformColor == 1) { 
             gl_FragColor = vec4(uColor, 1.0);
         } else {
-            float ambientStrength = 0.25;
-            vec3 ambient = ambientStrength * uSunColor;
+            vec3 ambient = uAmbienceStrength * uSunColor;
 
             vec3 norm = normalize(vNorm);
             vec3 lightDir = normalize(uSunPosition - vPos);

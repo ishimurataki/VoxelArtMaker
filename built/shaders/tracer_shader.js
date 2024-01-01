@@ -22,6 +22,7 @@ export const tracerFragmentSource = (divisionFactor) => {
     uniform vec3 uBackgroundColor;
     uniform int uTracerMaterial;
     uniform float uDiffuseStrength;
+    uniform float uAmbienceStrength;
     varying vec3 initialRay;
 
     vec2 intersectCube(vec3 origin, vec3 ray, vec3 cubeMin, vec3 cubeMax) {
@@ -79,7 +80,6 @@ export const tracerFragmentSource = (divisionFactor) => {
         vec3 ray = normalize(initialRay);
         vec3 origin = uEye;
         vec3 colorMask = vec3(1.0);
-        float ambienceStrength = 0.25;
         bool atLeastOneHit = false;
 
         for (int bounce = 0; bounce < 5; bounce++) {
@@ -127,20 +127,6 @@ export const tracerFragmentSource = (divisionFactor) => {
             float tDeltaX = float(stepX) / ray.x;
             float tDeltaY = float(stepY) / ray.y;
             float tDeltaZ = float(stepZ) / ray.z;
-
-            // if (tMaxX < tMaxY) {
-            //     if (tMaxX < tMaxZ) {
-            //         hitDim = 1;
-            //     } else {
-            //         hitDim = 3;
-            //     }
-            // } else {
-            //     if (tMaxY < tMaxZ) {
-            //         hitDim = 2;
-            //     } else {
-            //         hitDim = 3;
-            //     }
-            // }
 
             bool found = false;
             vec3 surfaceColor = uBackgroundColor;
@@ -210,7 +196,7 @@ export const tracerFragmentSource = (divisionFactor) => {
             float diffuse = max(0.0, dot(normalize(toLight), normal));
 
             colorMask *= surfaceColor;
-            accumulatedColor += colorMask * ambienceStrength;
+            accumulatedColor += colorMask * uAmbienceStrength;
             accumulatedColor += colorMask * uDiffuseStrength * diffuse;
 
             origin = nextOrigin;

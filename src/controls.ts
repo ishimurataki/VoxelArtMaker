@@ -283,6 +283,10 @@ export default class Controls {
 
     private toggleSunButtonClickHandler = () => {
         this.scene.toggleSun();
+        let toggleSunButton = document.getElementById("toggleSunButton");
+        if (toggleSunButton != null) {
+            toggleSunButton.innerHTML = (this.scene.sunOn) ? "Turn Off" : "Turn On"
+        }
     }
 
     private closeEditorButtonClickHandler = () => {
@@ -328,6 +332,10 @@ export default class Controls {
     private rayTraceButtonClickHandler = () => {
         this.globalState.rayTrace = !this.globalState.rayTrace;
         this.globalState.sampleCount = 0;
+        let rayTraceButton = document.getElementById("rayTraceButton");
+        if (rayTraceButton != null) {
+            rayTraceButton.innerHTML = (this.globalState.rayTrace) ? "Turn Off" : "Turn On"
+        }
     }
 
     private tracerMaterialChangeHandler = () => {
@@ -347,7 +355,9 @@ export default class Controls {
         let sliderElement = document.getElementById("ambienceSlider");
         if (sliderElement != null) {
             let ambienceStrength = Number((sliderElement as HTMLInputElement).value);
-            ambienceStrength = Math.pow(1.63, ambienceStrength - 5.3) - 0.122;
+            ambienceStrength = (Math.pow(1.63, ambienceStrength - 5.3) - 0.122) / 3;
+            this.globalState.ambienceStrength = ambienceStrength;
+            this.globalState.sampleCount = 0;
         }
     }
 
@@ -358,7 +368,6 @@ export default class Controls {
             sunStrength = Math.pow(1.63, sunStrength - 5.3) - 0.122;
             this.globalState.sunStrength = sunStrength;
             this.globalState.sampleCount = 0;
-            console.log(sunStrength);
         }
     }
 }

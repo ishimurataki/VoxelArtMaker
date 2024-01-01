@@ -35,6 +35,7 @@ export default class Renderer {
             sunPosition: WebGLUniformLocation | null;
             sunColor: WebGLUniformLocation | null;
             sunStrength: WebGLUniformLocation | null;
+            ambienceStrength: WebGLUniformLocation | null;
         }
     });
     private tracerProgramInfo: ({
@@ -57,6 +58,7 @@ export default class Renderer {
             backgroundColor: WebGLUniformLocation | null;
             tracerMaterial: WebGLUniformLocation | null;
             diffuseStrength: WebGLUniformLocation | null;
+            ambienceStrength: WebGLUniformLocation | null;
         }
     });
     private renderProgramInfo: ({
@@ -103,7 +105,8 @@ export default class Renderer {
                 cameraPosition: gl.getUniformLocation(plainShaderProgram, 'uCameraPosition'),
                 sunPosition: gl.getUniformLocation(plainShaderProgram, 'uSunPosition'),
                 sunColor: gl.getUniformLocation(plainShaderProgram, 'uSunColor'),
-                sunStrength: gl.getUniformLocation(plainShaderProgram, "uSunStrength")
+                sunStrength: gl.getUniformLocation(plainShaderProgram, "uSunStrength"),
+                ambienceStrength: gl.getUniformLocation(plainShaderProgram, "uAmbienceStrength")
             }
         };
         this.tracerProgramInfo = {
@@ -125,7 +128,8 @@ export default class Renderer {
                 height: gl.getUniformLocation(tracerShaderProgram, "uHeight"),
                 backgroundColor: gl.getUniformLocation(tracerShaderProgram, "uBackgroundColor"),
                 tracerMaterial: gl.getUniformLocation(tracerShaderProgram, "uTracerMaterial"),
-                diffuseStrength: gl.getUniformLocation(tracerShaderProgram, "uDiffuseStrength")
+                diffuseStrength: gl.getUniformLocation(tracerShaderProgram, "uDiffuseStrength"),
+                ambienceStrength: gl.getUniformLocation(tracerShaderProgram, "uAmbienceStrength")
             }
         };
         this.renderProgramInfo = {
@@ -292,6 +296,7 @@ export default class Renderer {
         this.gl.uniform3fv(this.plainProgramInfo.uniformLocations.sunColor, this.scene.sun.color);
         this.gl.uniform3fv(this.plainProgramInfo.uniformLocations.sunPosition, this.scene.sunCenter);
         this.gl.uniform1f(this.plainProgramInfo.uniformLocations.sunStrength, this.globalState.sunStrength);
+        this.gl.uniform1f(this.plainProgramInfo.uniformLocations.ambienceStrength, this.globalState.ambienceStrength);
         this.gl.uniform1i(this.plainProgramInfo.uniformLocations.useUniformColor, 0);
 
         // Draw cube space
@@ -340,6 +345,7 @@ export default class Renderer {
         this.gl.uniform1i(this.tracerProgramInfo.uniformLocations.tracerMaterial, this.globalState.tracerMaterial);
 
         this.gl.uniform1f(this.tracerProgramInfo.uniformLocations.diffuseStrength, this.globalState.sunStrength);
+        this.gl.uniform1f(this.tracerProgramInfo.uniformLocations.ambienceStrength, this.globalState.ambienceStrength);
 
         this.gl.uniform3fv(this.tracerProgramInfo.uniformLocations.eye, this.camera.eye);
         let jitter: vec3 = vec3.scale(vec3.create(), vec3.fromValues(Math.random() * 2 - 1, Math.random() * 2 - 1, 0), 1 / 5000);
