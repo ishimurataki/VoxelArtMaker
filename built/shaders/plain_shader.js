@@ -27,6 +27,7 @@ export const plainFragmentShaderSource = `
     uniform vec3 uSunPosition;
     uniform vec3 uSunColor;
     uniform int uSunOn;
+    uniform float uSunStrength;
 
     varying lowp vec3 vPos;
     varying lowp vec3 vNorm;
@@ -43,14 +44,14 @@ export const plainFragmentShaderSource = `
             vec3 lightDir = normalize(uSunPosition - vPos);
 
             float diffuseCoefficient = max(dot(norm, lightDir), 0.0);
-            vec3 diffuse = diffuseCoefficient * uSunColor;
+            vec3 diffuse = uSunStrength * diffuseCoefficient * uSunColor;
 
             float specularStrength = 0.5;
             vec3 viewDir = normalize(uCameraPosition - vPos);
             vec3 reflectDir = reflect(-lightDir, norm);  
 
             float specularCoefficient = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
-            vec3 specular = specularStrength * specularCoefficient * uSunColor;
+            vec3 specular = uSunStrength * specularStrength * specularCoefficient * uSunColor;
 
             vec3 result = (ambient + diffuse + specular) * vColor;
             gl_FragColor = vec4(result, 1.0);

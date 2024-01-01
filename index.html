@@ -23,8 +23,14 @@
                         type="text" data-coloris value="rgb(38.25, 38.25, 38.25)"></div>
                 <div>Toggle Sun: <button id="toggleSunButton" type="button">Click Me!</button></div>
                 <div>Ray Trace: <button id="rayTraceButton" type="button">Click Me!</button></div>
+                <div class="slideContainer">Ambience:
+                    <input type="range" min="1" max="10" value="5" step="0.025" class="slider" id="ambienceSlider">
+                </div>
+                <div class="slideContainer">Sun:
+                    <input type="range" min="1" max="10" step="0.025" class="slider" id="sunSlider">
+                </div>
                 <form action="">
-                    <label for="tracerMaterial">Ray Tracer Material:</label>
+                    <label>Ray Tracer Material:</label>
                     <select name="tracerMaterial" id="tracerMaterial">
                         <option value="diffuse">Diffuse</option>
                         <option value="mirror">Mirror</option>
@@ -32,7 +38,7 @@
                 </form>
                 <div>Download Design: <button id="downloadButton" type="button">Click Me!</button></div>
                 <form action="">
-                    <label for="model">Load a model:</label>
+                    <label>Load a model:</label>
                     <select name="models" id="models">
                         <option value="bonsai">Bonsai</option>
                         <option value="lamp">Lamp</option>

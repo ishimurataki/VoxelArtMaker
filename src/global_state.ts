@@ -27,6 +27,9 @@ export class GlobalState {
     sampleCount: number = 0;
     tracerMaterial: TracerMaterial = TracerMaterial.Diffuse;
 
+    sunStrength: number = 0.75;
+    ambienceStrength: number = 0.25;
+
     constructor(canvas: HTMLCanvasElement, divisionFactor: number, upperLeft: vec2) {
         this.canvas = canvas;
         this.clientWidth = canvas.clientWidth;

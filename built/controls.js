@@ -206,6 +206,7 @@ export default class Controls {
             else if (this.colorMode == COLOR_MODE.BACKGROUND) {
                 let newBackgroundColor = vec3.fromValues(rgbArray[0] / 255, rgbArray[1] / 255, rgbArray[2] / 255);
                 this.scene.setBackgroundColor(newBackgroundColor);
+                this.globalState.sampleCount = 0;
             }
         };
         this.downloadButtonClickHandler = (e) => {
@@ -277,12 +278,29 @@ export default class Controls {
             }
             this.globalState.sampleCount = 0;
         };
+        this.ambienceSliderHandler = () => {
+            let sliderElement = document.getElementById("ambienceSlider");
+            if (sliderElement != null) {
+                let ambienceStrength = Number(sliderElement.value);
+                ambienceStrength = Math.pow(1.63, ambienceStrength - 5.3) - 0.122;
+            }
+        };
+        this.sunSliderHandler = () => {
+            let sliderElement = document.getElementById("sunSlider");
+            if (sliderElement != null) {
+                let sunStrength = Number(sliderElement.value);
+                sunStrength = Math.pow(1.63, sunStrength - 5.3) - 0.122;
+                this.globalState.sunStrength = sunStrength;
+                this.globalState.sampleCount = 0;
+                console.log(sunStrength);
+            }
+        };
         this.globalState = globalState;
         this.camera = camera;
         this.scene = scene;
     }
     registerControls() {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
         this.globalState.canvas.addEventListener('mousemove', this.moveHandler, false);
         this.globalState.canvas.addEventListener('click', this.clickHandler, false);
         this.globalState.canvas.addEventListener('mousedown', this.mouseDownHandler, false);
@@ -300,5 +318,7 @@ export default class Controls {
         (_g = document.getElementById("backgroundColor")) === null || _g === void 0 ? void 0 : _g.addEventListener('click', this.backgroundColorClickHandler, false);
         (_h = document.getElementById("rayTraceButton")) === null || _h === void 0 ? void 0 : _h.addEventListener('click', this.rayTraceButtonClickHandler, false);
         (_j = document.getElementById("tracerMaterial")) === null || _j === void 0 ? void 0 : _j.addEventListener('change', this.tracerMaterialChangeHandler, false);
+        (_k = document.getElementById("ambienceSlider")) === null || _k === void 0 ? void 0 : _k.addEventListener('input', this.ambienceSliderHandler, false);
+        (_l = document.getElementById("sunSlider")) === null || _l === void 0 ? void 0 : _l.addEventListener('input', this.sunSliderHandler, false);
     }
 }

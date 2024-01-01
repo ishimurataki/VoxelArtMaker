@@ -21,6 +21,7 @@ export const tracerFragmentSource = (divisionFactor) => {
     uniform float uHeight;
     uniform vec3 uBackgroundColor;
     uniform int uTracerMaterial;
+    uniform float uDiffuseStrength;
     varying vec3 initialRay;
 
     vec2 intersectCube(vec3 origin, vec3 ray, vec3 cubeMin, vec3 cubeMax) {
@@ -79,13 +80,15 @@ export const tracerFragmentSource = (divisionFactor) => {
         vec3 origin = uEye;
         vec3 colorMask = vec3(1.0);
         float ambienceStrength = 0.25;
-        float diffuseStrength = 0.75;
         bool atLeastOneHit = false;
 
         for (int bounce = 0; bounce < 5; bounce++) {
             vec2 tCube = intersectCube(origin, ray, cubeMin, cubeMax);
             if (tCube.x > tCube.y) {
                 accumulatedColor = uBackgroundColor;
+                break;
+            }
+            if (tCube.y < 0.0) {
                 break;
             }
             float t = max(0.0, tCube.x);
@@ -95,6 +98,7 @@ export const tracerFragmentSource = (divisionFactor) => {
             int stepZ = (ray.z > 0.0) ? 1 : -1;
 
             vec3 intersectPoint = (t + 0.00001) * ray + origin;
+            vec3 nextOrigin = (t - 0.00001) * ray + origin;
             vec3 intersectPointLocalized = float(divisionFactor) * vec3(intersectPoint.x + 0.5, intersectPoint.y, intersectPoint.z + 0.5);
 
             int x = int(intersectPointLocalized.x);
@@ -102,9 +106,11 @@ export const tracerFragmentSource = (divisionFactor) => {
             int z = int(intersectPointLocalized.z);
 
             int hitDim;
-            if (abs(intersectPointLocalized.x - float(x)) < 0.0001) {
+            if ((stepX == 1 && abs(intersectPointLocalized.x - float(x)) < 0.001) || 
+                (stepX == -1 && abs(intersectPointLocalized.x - float(x + 1)) < 0.001)) {
                 hitDim = 1;
-            } else if (abs(intersectPointLocalized.y - float(y)) < 0.0001) {
+            } else if ((stepY == 1 && abs(intersectPointLocalized.y - float(y)) < 0.001) || 
+                (stepY == -1 && abs(intersectPointLocalized.y - float(y + 1)) < 0.001)) {
                 hitDim = 2;
             } else {
                 hitDim = 3;
@@ -122,6 +128,20 @@ export const tracerFragmentSource = (divisionFactor) => {
             float tDeltaY = float(stepY) / ray.y;
             float tDeltaZ = float(stepZ) / ray.z;
 
+            // if (tMaxX < tMaxY) {
+            //     if (tMaxX < tMaxZ) {
+            //         hitDim = 1;
+            //     } else {
+            //         hitDim = 3;
+            //     }
+            // } else {
+            //     if (tMaxY < tMaxZ) {
+            //         hitDim = 2;
+            //     } else {
+            //         hitDim = 3;
+            //     }
+            // }
+
             bool found = false;
             vec3 surfaceColor = uBackgroundColor;
             vec3 normal; 
@@ -137,7 +157,7 @@ export const tracerFragmentSource = (divisionFactor) => {
                 vec4 cubeColor = texture2D(uCubeSpaceTexture, vec2(textureX, textureY));
                 if (cubeColor.a == 1.0) {
                     found = true;
-                    intersectPoint = t * ray + origin;
+                    nextOrigin = (t - 0.001) * ray + origin;
                     surfaceColor = cubeColor.rgb;
                     if (hitDim == 1) {
                         normal = (stepX < 0) ? vec3(1.0, 0.0, 0.0) : vec3(-1.0, 0.0, 0.0); 
@@ -186,14 +206,14 @@ export const tracerFragmentSource = (divisionFactor) => {
                 break;
             }
 
-            vec3 toLight = uLightPos + (uniformlyRandomVector(uTimeSinceStart - 53.0) * 0.1) - intersectPoint;
+            vec3 toLight = uLightPos + (uniformlyRandomVector(uTimeSinceStart - 53.0) * 0.1) - nextOrigin;
             float diffuse = max(0.0, dot(normalize(toLight), normal));
 
             colorMask *= surfaceColor;
             accumulatedColor += colorMask * ambienceStrength;
-            accumulatedColor += colorMask * diffuseStrength * diffuse;
+            accumulatedColor += colorMask * uDiffuseStrength * diffuse;
 
-            origin = intersectPoint;
+            origin = nextOrigin;
         }
 
         if (!atLeastOneHit) {

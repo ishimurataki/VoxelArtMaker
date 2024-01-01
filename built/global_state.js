@@ -15,6 +15,8 @@ export class GlobalState {
         this.rayTrace = false;
         this.sampleCount = 0;
         this.tracerMaterial = TracerMaterial.Diffuse;
+        this.sunStrength = 0.75;
+        this.ambienceStrength = 0.25;
         this.canvas = canvas;
         this.clientWidth = canvas.clientWidth;
         this.clientHeight = canvas.clientHeight;

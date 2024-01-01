@@ -50,6 +50,8 @@ export default class Controls {
         document.getElementById("backgroundColor")?.addEventListener('click', this.backgroundColorClickHandler, false);
         document.getElementById("rayTraceButton")?.addEventListener('click', this.rayTraceButtonClickHandler, false);
         document.getElementById("tracerMaterial")?.addEventListener('change', this.tracerMaterialChangeHandler, false);
+        document.getElementById("ambienceSlider")?.addEventListener('input', this.ambienceSliderHandler, false);
+        document.getElementById("sunSlider")?.addEventListener('input', this.sunSliderHandler, false);
     }
 
     private moveHandler = (e: MouseEvent) => {
@@ -257,6 +259,7 @@ export default class Controls {
                 rgbArray[1] / 255,
                 rgbArray[2] / 255);
             this.scene.setBackgroundColor(newBackgroundColor);
+            this.globalState.sampleCount = 0;
         }
     }
 
@@ -338,5 +341,24 @@ export default class Controls {
             }
         }
         this.globalState.sampleCount = 0;
+    }
+
+    private ambienceSliderHandler = () => {
+        let sliderElement = document.getElementById("ambienceSlider");
+        if (sliderElement != null) {
+            let ambienceStrength = Number((sliderElement as HTMLInputElement).value);
+            ambienceStrength = Math.pow(1.63, ambienceStrength - 5.3) - 0.122;
+        }
+    }
+
+    private sunSliderHandler = () => {
+        let sliderElement = document.getElementById("sunSlider");
+        if (sliderElement != null) {
+            let sunStrength = Number((sliderElement as HTMLInputElement).value);
+            sunStrength = Math.pow(1.63, sunStrength - 5.3) - 0.122;
+            this.globalState.sunStrength = sunStrength;
+            this.globalState.sampleCount = 0;
+            console.log(sunStrength);
+        }
     }
 }

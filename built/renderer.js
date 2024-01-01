@@ -33,7 +33,8 @@ export default class Renderer {
                 useUniformColor: gl.getUniformLocation(plainShaderProgram, 'uUseUniformColor'),
                 cameraPosition: gl.getUniformLocation(plainShaderProgram, 'uCameraPosition'),
                 sunPosition: gl.getUniformLocation(plainShaderProgram, 'uSunPosition'),
-                sunColor: gl.getUniformLocation(plainShaderProgram, 'uSunColor')
+                sunColor: gl.getUniformLocation(plainShaderProgram, 'uSunColor'),
+                sunStrength: gl.getUniformLocation(plainShaderProgram, "uSunStrength")
             }
         };
         this.tracerProgramInfo = {
@@ -54,7 +55,8 @@ export default class Renderer {
                 width: gl.getUniformLocation(tracerShaderProgram, "uWidth"),
                 height: gl.getUniformLocation(tracerShaderProgram, "uHeight"),
                 backgroundColor: gl.getUniformLocation(tracerShaderProgram, "uBackgroundColor"),
-                tracerMaterial: gl.getUniformLocation(tracerShaderProgram, "uTracerMaterial")
+                tracerMaterial: gl.getUniformLocation(tracerShaderProgram, "uTracerMaterial"),
+                diffuseStrength: gl.getUniformLocation(tracerShaderProgram, "uDiffuseStrength")
             }
         };
         this.renderProgramInfo = {
@@ -205,6 +207,7 @@ export default class Renderer {
         this.gl.uniform3fv(this.plainProgramInfo.uniformLocations.cameraPosition, this.camera.getPosition());
         this.gl.uniform3fv(this.plainProgramInfo.uniformLocations.sunColor, this.scene.sun.color);
         this.gl.uniform3fv(this.plainProgramInfo.uniformLocations.sunPosition, this.scene.sunCenter);
+        this.gl.uniform1f(this.plainProgramInfo.uniformLocations.sunStrength, this.globalState.sunStrength);
         this.gl.uniform1i(this.plainProgramInfo.uniformLocations.useUniformColor, 0);
         // Draw cube space
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.scene.cubeSpace.cubeSpacePositionBuffer);
@@ -245,6 +248,7 @@ export default class Renderer {
         this.gl.uniform1f(this.tracerProgramInfo.uniformLocations.height, this.globalState.clientHeight);
         this.gl.uniform3fv(this.tracerProgramInfo.uniformLocations.backgroundColor, this.scene.backgroundColor);
         this.gl.uniform1i(this.tracerProgramInfo.uniformLocations.tracerMaterial, this.globalState.tracerMaterial);
+        this.gl.uniform1f(this.tracerProgramInfo.uniformLocations.diffuseStrength, this.globalState.sunStrength);
         this.gl.uniform3fv(this.tracerProgramInfo.uniformLocations.eye, this.camera.eye);
         let jitter = vec3.scale(vec3.create(), vec3.fromValues(Math.random() * 2 - 1, Math.random() * 2 - 1, 0), 1 / 5000);
         let inverse = mat4.invert(mat4.create(), mat4.translate(mat4.create(), viewProjectionMatrix, jitter));
