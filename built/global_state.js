@@ -18,8 +18,6 @@ export class GlobalState {
         this.sunStrength = 0.75;
         this.ambienceStrength = 0.25;
         this.canvas = canvas;
-        this.clientWidth = canvas.clientWidth;
-        this.clientHeight = canvas.clientHeight;
         this.divisionFactor = divisionFactor;
         this.sideLength = 1 / this.divisionFactor;
         this.upperLeft = upperLeft;

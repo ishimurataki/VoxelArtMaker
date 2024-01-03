@@ -25,7 +25,7 @@ const main = () => {
         return;
     }
     const gl = glMaybeNull;
-    const camera = new PolarCamera(0, 0);
+    const camera = new PolarCamera(globalState.canvas.clientWidth, globalState.canvas.clientHeight);
     const scene = new Scene(gl, globalState);
     const controls = new Controls(globalState, camera, scene);
     controls.registerControls();
@@ -45,7 +45,11 @@ const main = () => {
         return;
     }
     const renderer = new Renderer(gl, globalState, tracerShaderProgram, renderShaderProgram, plainShaderProgram, camera, scene);
-    window.onresize = () => {
+    // window.onresize = () => {
+    //     renderer.resizeTracerTextures();
+    // }
+    canvas.onresize = () => {
+        console.log("WE ARE HERE");
         renderer.resizeTracerTextures();
     };
     gl.useProgram(plainShaderProgram);

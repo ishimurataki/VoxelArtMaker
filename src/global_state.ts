@@ -7,8 +7,6 @@ export enum TracerMaterial {
 
 export class GlobalState {
     canvas: HTMLCanvasElement;
-    clientWidth: number;
-    clientHeight: number;
 
     divisionFactor: number;
     sideLength: number;
@@ -32,8 +30,6 @@ export class GlobalState {
 
     constructor(canvas: HTMLCanvasElement, divisionFactor: number, upperLeft: vec2) {
         this.canvas = canvas;
-        this.clientWidth = canvas.clientWidth;
-        this.clientHeight = canvas.clientHeight;
         this.divisionFactor = divisionFactor;
         this.sideLength = 1 / this.divisionFactor;
         this.upperLeft = upperLeft;

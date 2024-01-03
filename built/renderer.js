@@ -69,7 +69,6 @@ export default class Renderer {
                 renderTexture: gl.getUniformLocation(renderShaderProgram, "uRenderTexture")
             }
         };
-        // ALL TRACER STUFF
         let vertices = [
             -1, -1,
             -1, +1,
@@ -88,13 +87,14 @@ export default class Renderer {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.globalState.clientWidth, this.globalState.clientHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.globalState.canvas.clientWidth, this.globalState.canvas.clientHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
             gl.bindTexture(gl.TEXTURE_2D, null);
         }
-        //
+        this.previousCanvasWidth = this.globalState.canvas.clientWidth;
+        this.previousCanvasHeight = this.globalState.canvas.clientHeight;
+        this.gl.viewport(0, 0, this.globalState.canvas.clientWidth, this.globalState.canvas.clientHeight);
     }
     resizeTracerTextures() {
-        console.log("Resizing textures: " + this.globalState.clientWidth + " x " + this.globalState.clientHeight);
         this.tracerFrameBuffer = this.gl.createFramebuffer();
         this.tracerTextures = [];
         for (let i = 0; i < 2; i++) {
@@ -104,9 +104,10 @@ export default class Renderer {
             this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
             this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
             this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
-            this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.globalState.clientWidth, this.globalState.clientHeight, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null);
+            this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.globalState.canvas.clientWidth, this.globalState.canvas.clientHeight, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null);
             this.gl.bindTexture(this.gl.TEXTURE_2D, null);
         }
+        this.globalState.sampleCount = 0;
     }
     tick(currentTime) {
         let deltaTime = currentTime - this.globalState.previousTime;
@@ -123,12 +124,16 @@ export default class Renderer {
     }
     render(currentTime) {
         this.gl.enable(this.gl.DEPTH_TEST);
-        this.globalState.clientWidth = this.globalState.canvas.clientWidth;
-        this.globalState.clientHeight = this.globalState.canvas.clientHeight;
-        this.globalState.canvas.width = this.globalState.clientWidth;
-        this.globalState.canvas.height = this.globalState.clientHeight;
-        this.camera.changeWidthHeight(this.globalState.clientWidth, this.globalState.clientHeight);
-        this.gl.viewport(0, 0, this.globalState.clientWidth, this.globalState.clientHeight);
+        this.globalState.canvas.width = this.globalState.canvas.clientWidth;
+        this.globalState.canvas.height = this.globalState.canvas.clientHeight;
+        if (this.globalState.canvas.clientWidth != this.previousCanvasWidth ||
+            this.globalState.canvas.clientHeight != this.previousCanvasHeight) {
+            this.camera.changeWidthHeight(this.globalState.canvas.clientWidth, this.globalState.canvas.clientHeight);
+            this.gl.viewport(0, 0, this.globalState.canvas.clientWidth, this.globalState.canvas.clientHeight);
+            this.previousCanvasWidth = this.globalState.canvas.clientWidth;
+            this.previousCanvasHeight = this.globalState.canvas.clientHeight;
+            this.resizeTracerTextures();
+        }
         this.gl.clearColor(this.scene.backgroundColor[0], this.scene.backgroundColor[1], this.scene.backgroundColor[2], 1.0);
         this.gl.clearDepth(1.0);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
@@ -247,8 +252,8 @@ export default class Renderer {
     }
     renderViewerRayTraced(viewProjectionMatrix, currentTime) {
         this.gl.useProgram(this.tracerShaderProgram);
-        this.gl.uniform1f(this.tracerProgramInfo.uniformLocations.width, this.globalState.clientWidth);
-        this.gl.uniform1f(this.tracerProgramInfo.uniformLocations.height, this.globalState.clientHeight);
+        this.gl.uniform1f(this.tracerProgramInfo.uniformLocations.width, this.globalState.canvas.clientWidth);
+        this.gl.uniform1f(this.tracerProgramInfo.uniformLocations.height, this.globalState.canvas.clientHeight);
         this.gl.uniform3fv(this.tracerProgramInfo.uniformLocations.backgroundColor, this.scene.backgroundColor);
         this.gl.uniform1i(this.tracerProgramInfo.uniformLocations.tracerMaterial, this.globalState.tracerMaterial);
         this.gl.uniform1f(this.tracerProgramInfo.uniformLocations.diffuseStrength, this.globalState.sunStrength);
