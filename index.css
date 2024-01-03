@@ -107,3 +107,17 @@ canvas {
 #layerLabel {
     font-size: large;
 }
+
+#instructions {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    width: 90%;
+    max-height: 300px;
+    font-size: x-small;
+    background-color: lightcoral;
+    overflow-y: auto;
+}
+
+ul {
+    padding-left: 0.5;
+}
