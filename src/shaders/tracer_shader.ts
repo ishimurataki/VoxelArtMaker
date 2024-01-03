@@ -73,6 +73,72 @@ export const tracerFragmentSource = (divisionFactor: number) => {
         return uniformlyRandomDirection(seed) * sqrt(random(vec3(36.7539, 50.3658, 306.2759), seed));
     }
 
+    float calculateShadowStrength(vec3 origin, vec3 toLight, float tLight) {
+        int divisionFactor = ${divisionFactor.toFixed(0)};
+
+        int stepX = (toLight.x > 0.0) ? 1 : -1;
+        int stepY = (toLight.y > 0.0) ? 1 : -1;
+        int stepZ = (toLight.z > 0.0) ? 1 : -1;
+
+        float t = 0.0;
+        vec3 intersectPoint = origin;
+        vec3 intersectPointLocalized = float(divisionFactor) * vec3(intersectPoint.x + 0.5, intersectPoint.y, intersectPoint.z + 0.5);
+
+        int x = int(intersectPointLocalized.x);
+        int y = int(intersectPointLocalized.y);
+        int z = int(intersectPointLocalized.z);
+
+        float nextX = (stepX == 1) ? ceil(intersectPointLocalized.x) : floor(intersectPointLocalized.x);
+        float nextY = (stepY == 1) ? ceil(intersectPointLocalized.y) : floor(intersectPointLocalized.y);
+        float nextZ = (stepZ == 1) ? ceil(intersectPointLocalized.z) : floor(intersectPointLocalized.z);
+
+        float tMaxX = (nextX - intersectPointLocalized.x) / toLight.x;
+        float tMaxY = (nextY - intersectPointLocalized.y) / toLight.y;
+        float tMaxZ = (nextZ - intersectPointLocalized.z) / toLight.z;
+
+        float tDeltaX = float(stepX) / toLight.x;
+        float tDeltaY = float(stepY) / toLight.y;
+        float tDeltaZ = float(stepZ) / toLight.z;
+
+        for (int i = 0; i < ${(divisionFactor * 3).toFixed(0)}; i++) {
+            if (x >= divisionFactor || x < 0 || 
+                y >= divisionFactor || y < 0 || 
+                z >= divisionFactor || z < 0 ||
+                t > tLight) {
+                return 0.0;
+            }
+            float textureX = float(divisionFactor * x + z) / 
+                float(divisionFactor * divisionFactor);
+            float textureY = float(y) / float(divisionFactor);
+            vec4 cubeColor = texture2D(uCubeSpaceTexture, vec2(textureX, textureY));
+            if (cubeColor.a == 1.0) {
+                return 1.0;
+            }
+            if (tMaxX < tMaxY) {
+                if (tMaxX < tMaxZ) {
+                    x += stepX;
+                    t = (tMaxX / float(divisionFactor));
+                    tMaxX = tMaxX + tDeltaX;
+                } else {
+                    z += stepZ;
+                    t = (tMaxZ / float(divisionFactor));
+                    tMaxZ = tMaxZ + tDeltaZ;
+                }
+            } else {
+                if (tMaxY < tMaxZ) {
+                    y += stepY;
+                    t = (tMaxY / float(divisionFactor));
+                    tMaxY = tMaxY + tDeltaY;
+                } else {
+                    z += stepZ;
+                    t = (tMaxZ / float(divisionFactor));
+                    tMaxZ = tMaxZ + tDeltaZ;
+                }
+            }
+        }
+        return 0.0;
+    }
+
     void main() {
         int divisionFactor = ${divisionFactor.toFixed(0)};
         vec3 cubeMin = vec3(-0.5, 0.0, -0.5);
@@ -153,12 +219,21 @@ export const tracerFragmentSource = (divisionFactor: number) => {
                     } else {
                         normal = (stepZ < 0) ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 0.0, -1.0); 
                     }
-                    if (uTracerMaterial == 0) {
-                        float seed = uTimeSinceStart - (1000.0 * floor(uTimeSinceStart / 1000.0));
-                        ray = cosineWeightedDirection(seed + float(bounce), normal);
-                    } else {
+                    float seed = uTimeSinceStart - (1000.0 * floor(uTimeSinceStart / 1000.0));
+                    float rand = random(vec3(12.9898, 78.233, 151.7182), seed);
+                    if (uTracerMaterial == 1 && rand > 0.1) {
                         ray = reflect(ray, normal);
+                    } else {
+                        ray = cosineWeightedDirection(seed + float(bounce), normal);
                     }
+
+                    // if (uTracerMaterial == 0) {
+                    //     float seed = uTimeSinceStart - (1000.0 * floor(uTimeSinceStart / 1000.0));
+                    //     ray = cosineWeightedDirection(seed + float(bounce), normal);
+                    // } else {
+                        
+                    //     ray = reflect(ray, normal);
+                    // }
                     break;
                 }
                 if (tMaxX < tMaxY) {
@@ -193,12 +268,17 @@ export const tracerFragmentSource = (divisionFactor: number) => {
                 break;
             }
 
-            vec3 toLight = uLightPos + (uniformlyRandomVector(uTimeSinceStart - 53.0) * 0.1) - nextOrigin;
-            float diffuse = max(0.0, dot(normalize(toLight), normal));
+            vec3 toLight = uLightPos + (0.05 * uniformlyRandomVector(uTimeSinceStart - 53.0) * 0.01) - nextOrigin;
+            vec3 toLightNorm = normalize(toLight);
+            float tLight = length(toLight);
+
+            float shadowStrength = calculateShadowStrength(nextOrigin, toLightNorm, tLight); 
+
+            float diffuse = max(0.0, dot(toLightNorm, normal));
 
             colorMask *= surfaceColor;
             accumulatedColor += colorMask * uAmbienceStrength;
-            accumulatedColor += colorMask * uDiffuseStrength * diffuse;
+            accumulatedColor += colorMask * uDiffuseStrength * (1.0 - shadowStrength) * diffuse;
 
             origin = nextOrigin;
         }
