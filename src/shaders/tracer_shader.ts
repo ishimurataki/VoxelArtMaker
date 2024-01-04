@@ -141,6 +141,7 @@ export const tracerFragmentSource = (divisionFactor: number) => {
 
     void main() {
         int divisionFactor = ${divisionFactor.toFixed(0)};
+        float sideLength = 1.0 / float(divisionFactor);
         vec3 cubeMin = vec3(-0.5, 0.0, -0.5);
         vec3 cubeMax = vec3(0.5, 1.0, 0.5);
         vec3 accumulatedColor = vec3(0.0);
@@ -148,6 +149,15 @@ export const tracerFragmentSource = (divisionFactor: number) => {
         vec3 origin = uEye;
         vec3 colorMask = vec3(1.0);
         bool atLeastOneHit = false;
+
+        vec3 sunCubeMin = uLightPos + vec3(-sideLength / 2.0, -sideLength / 2.0, -sideLength / 2.0);
+        vec3 sunCubeMax = uLightPos + vec3(sideLength / 2.0, sideLength / 2.0, sideLength / 2.0);
+        vec2 tSunCube = intersectCube(origin, ray, sunCubeMin, sunCubeMax);
+        float tSun = -1.0;
+        if (tSunCube.x < tSunCube.y && tSunCube.x > 0.0) {
+            tSun = tSunCube.x;
+        }
+        bool sunHit = false;
 
         for (int bounce = 0; bounce < 5; bounce++) {
             vec2 tCube = intersectCube(origin, ray, cubeMin, cubeMax);
@@ -164,8 +174,8 @@ export const tracerFragmentSource = (divisionFactor: number) => {
             int stepY = (ray.y > 0.0) ? 1 : -1;
             int stepZ = (ray.z > 0.0) ? 1 : -1;
 
-            vec3 intersectPoint = (t + 0.00001) * ray + origin;
-            vec3 nextOrigin = (t - 0.00001) * ray + origin;
+            vec3 intersectPoint = (t + 0.001) * ray + origin;
+            vec3 nextOrigin = (t - 0.001) * ray + origin;
             vec3 intersectPointLocalized = float(divisionFactor) * vec3(intersectPoint.x + 0.5, intersectPoint.y, intersectPoint.z + 0.5);
 
             int x = int(intersectPointLocalized.x);
@@ -209,6 +219,12 @@ export const tracerFragmentSource = (divisionFactor: number) => {
                 float textureY = float(y) / float(divisionFactor);
                 vec4 cubeColor = texture2D(uCubeSpaceTexture, vec2(textureX, textureY));
                 if (cubeColor.a == 1.0) {
+                    if (tSun > 0.0 && tSun < t) {
+                        sunHit = true;
+                        break;
+                    }
+                    tSun = -1.0;
+
                     found = true;
                     nextOrigin = (t - 0.001) * ray + origin;
                     surfaceColor = cubeColor.rgb;
@@ -226,14 +242,6 @@ export const tracerFragmentSource = (divisionFactor: number) => {
                     } else {
                         ray = cosineWeightedDirection(seed + float(bounce), normal);
                     }
-
-                    // if (uTracerMaterial == 0) {
-                    //     float seed = uTimeSinceStart - (1000.0 * floor(uTimeSinceStart / 1000.0));
-                    //     ray = cosineWeightedDirection(seed + float(bounce), normal);
-                    // } else {
-                        
-                    //     ray = reflect(ray, normal);
-                    // }
                     break;
                 }
                 if (tMaxX < tMaxY) {
@@ -282,9 +290,14 @@ export const tracerFragmentSource = (divisionFactor: number) => {
 
             origin = nextOrigin;
         }
-
-        if (!atLeastOneHit) {
-            accumulatedColor = uBackgroundColor;
+        if (sunHit) {
+            accumulatedColor = vec3(1.0, 1.0, 1.0);
+        } else if (!atLeastOneHit) {
+            if (tSun > 0.0) {
+                accumulatedColor = vec3(1.0, 1.0, 1.0);
+            } else {
+                accumulatedColor = uBackgroundColor;
+            }
         }
         vec2 texCoord = vec2(gl_FragCoord.x / uWidth, gl_FragCoord.y / uHeight);
         vec3 texture = texture2D(uRenderTexture, texCoord).rgb;

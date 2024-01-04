@@ -58,15 +58,6 @@ const main = () => {
 
     const renderer = new Renderer(gl, globalState, tracerShaderProgram, renderShaderProgram, plainShaderProgram, camera, scene);
 
-    // window.onresize = () => {
-    //     renderer.resizeTracerTextures();
-    // }
-
-    canvas.onresize = () => {
-        console.log("WE ARE HERE");
-        renderer.resizeTracerTextures();
-    }
-
     gl.useProgram(plainShaderProgram);
 
     const render = (now: number) => {
