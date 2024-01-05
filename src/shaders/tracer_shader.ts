@@ -84,9 +84,9 @@ export const tracerFragmentSource = (divisionFactor: number) => {
         vec3 intersectPoint = origin;
         vec3 intersectPointLocalized = float(divisionFactor) * vec3(intersectPoint.x + 0.5, intersectPoint.y, intersectPoint.z + 0.5);
 
-        int x = int(intersectPointLocalized.x);
-        int y = int(intersectPointLocalized.y);
-        int z = int(intersectPointLocalized.z);
+        int x = int(floor(intersectPointLocalized.x));
+        int y = int(floor(intersectPointLocalized.y));
+        int z = int(floor(intersectPointLocalized.z));
 
         float nextX = (stepX == 1) ? ceil(intersectPointLocalized.x) : floor(intersectPointLocalized.x);
         float nextY = (stepY == 1) ? ceil(intersectPointLocalized.y) : floor(intersectPointLocalized.y);
@@ -174,8 +174,8 @@ export const tracerFragmentSource = (divisionFactor: number) => {
             int stepY = (ray.y > 0.0) ? 1 : -1;
             int stepZ = (ray.z > 0.0) ? 1 : -1;
 
-            vec3 intersectPoint = (t + 0.001) * ray + origin;
-            vec3 nextOrigin = (t - 0.001) * ray + origin;
+            vec3 intersectPoint = (t + 0.00001) * ray + origin;
+            vec3 nextOrigin = (t - 0.00001) * ray + origin;
             vec3 intersectPointLocalized = float(divisionFactor) * vec3(intersectPoint.x + 0.5, intersectPoint.y, intersectPoint.z + 0.5);
 
             int x = int(intersectPointLocalized.x);
@@ -280,7 +280,7 @@ export const tracerFragmentSource = (divisionFactor: number) => {
             vec3 toLightNorm = normalize(toLight);
             float tLight = length(toLight);
 
-            float shadowStrength = calculateShadowStrength(nextOrigin, toLightNorm, tLight); 
+            float shadowStrength = calculateShadowStrength(nextOrigin, toLightNorm, tLight);
 
             float diffuse = max(0.0, dot(toLightNorm, normal));
 
