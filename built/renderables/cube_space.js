@@ -16,7 +16,6 @@ export default class CubeSpace {
         return (y * Math.pow(this.divisionFactor, 2)) + (x * this.divisionFactor) + z;
     }
     setCube(x, y, z, color) {
-        console.log("SetCube called with: " + "(" + x + ", " + y + ", " + z + ")");
         let cubeIndex = this.getCubeIndex(x, y, z);
         this.cubeSpace[cubeIndex] = color;
         this.cubeSpaceTextureData[4 * cubeIndex] = 255 * color[0];

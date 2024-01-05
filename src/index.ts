@@ -1,6 +1,7 @@
 import initShaderProgram from "./utils/shader_helper.js";
 import { plainVertexShaderSource, plainFragmentShaderSource } from "./shaders/plain_shader.js";
 import { tracerVertexSource, tracerFragmentSource } from "./shaders/tracer_shader.js";
+import { renderFragmentSource, renderVertexSource } from "./shaders/render_shader.js";
 import { vec2 } from "./gl-matrix/index.js";
 
 import { PolarCamera } from "./polar_camera.js";
@@ -8,7 +9,6 @@ import Scene from "./renderables/scene.js";
 import Controls from "./controls.js";
 import { GlobalState } from "./global_state.js";
 import Renderer from "./renderer.js";
-import { renderFragmentSource, renderVertexSource } from "./shaders/render_shader.js";
 
 const main = () => {
     console.log("Starting main function.");

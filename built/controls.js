@@ -11,6 +11,7 @@ export default class Controls {
     constructor(globalState, camera, scene) {
         this.mouseDown = false;
         this.shiftDown = false;
+        this.tKeyDown = false;
         this.moveSun = false;
         this.cubePlacedInCurrentPos = false;
         this.xIndex = -1;
@@ -46,6 +47,12 @@ export default class Controls {
                     if (this.shiftDown) {
                         this.globalState.renderHoverCube = false;
                         this.scene.deleteCube(this.xIndex, this.zIndex);
+                    }
+                    else if (this.tKeyDown) {
+                        this.globalState.renderHoverCube = false;
+                        let newCubeColor = this.scene.getCube(this.xIndex, this.zIndex);
+                        if (newCubeColor != null)
+                            this.scene.setHoverCubeColor(newCubeColor);
                     }
                     else {
                         this.scene.addCube(this.xIndex, this.zIndex);
@@ -114,6 +121,12 @@ export default class Controls {
                     this.globalState.renderHoverCube = false;
                     this.scene.deleteCube(this.xIndex, this.zIndex);
                 }
+                else if (this.tKeyDown) {
+                    this.globalState.renderHoverCube = false;
+                    let newCubeColor = this.scene.getCube(this.xIndex, this.zIndex);
+                    if (newCubeColor != null)
+                        this.scene.setHoverCubeColor(newCubeColor);
+                }
                 else {
                     this.scene.addCube(this.xIndex, this.zIndex);
                 }
@@ -167,6 +180,10 @@ export default class Controls {
                     break;
                 case "Space":
                     e.preventDefault();
+                    break;
+                case "KeyT":
+                    this.tKeyDown = true;
+                    break;
             }
         };
         this.keyUpHandler = (e) => {
@@ -184,6 +201,10 @@ export default class Controls {
                         this.globalState.transitionTime = 0;
                         this.camera.changeToEditor();
                     }
+                    break;
+                case "KeyT":
+                    this.tKeyDown = false;
+                    break;
             }
         };
         this.toggleToViewer = () => {

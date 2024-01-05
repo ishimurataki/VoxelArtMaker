@@ -31,7 +31,6 @@ export default class CubeSpace {
     }
 
     setCube(x: number, y: number, z: number, color: vec3): void {
-        console.log("SetCube called with: " + "(" + x + ", " + y + ", " + z + ")");
         let cubeIndex = this.getCubeIndex(x, y, z);
         this.cubeSpace[cubeIndex] = color;
         this.cubeSpaceTextureData[4 * cubeIndex] = 255 * color[0];

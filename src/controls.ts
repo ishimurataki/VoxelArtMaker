@@ -16,6 +16,7 @@ export default class Controls {
 
     private mouseDown: boolean = false;
     private shiftDown: boolean = false;
+    private tKeyDown: boolean = false;
     private moveSun: boolean = false;
     private cubePlacedInCurrentPos: boolean = false;
     private xIndex: number = -1;
@@ -87,6 +88,10 @@ export default class Controls {
                 if (this.shiftDown) {
                     this.globalState.renderHoverCube = false;
                     this.scene.deleteCube(this.xIndex, this.zIndex);
+                } else if (this.tKeyDown) {
+                    this.globalState.renderHoverCube = false;
+                    let newCubeColor = this.scene.getCube(this.xIndex, this.zIndex);
+                    if (newCubeColor != null) this.scene.setHoverCubeColor(newCubeColor);
                 } else {
                     this.scene.addCube(this.xIndex, this.zIndex);
                 }
@@ -154,6 +159,10 @@ export default class Controls {
             if (this.shiftDown) {
                 this.globalState.renderHoverCube = false;
                 this.scene.deleteCube(this.xIndex, this.zIndex);
+            } else if (this.tKeyDown) {
+                this.globalState.renderHoverCube = false;
+                let newCubeColor = this.scene.getCube(this.xIndex, this.zIndex);
+                if (newCubeColor != null) this.scene.setHoverCubeColor(newCubeColor);
             } else {
                 this.scene.addCube(this.xIndex, this.zIndex);
             }
@@ -210,6 +219,10 @@ export default class Controls {
                 break;
             case "Space":
                 e.preventDefault();
+                break;
+            case "KeyT":
+                this.tKeyDown = true;
+                break;
         }
     }
 
@@ -227,6 +240,10 @@ export default class Controls {
                     this.globalState.transitionTime = 0;
                     this.camera.changeToEditor();
                 }
+                break;
+            case "KeyT":
+                this.tKeyDown = false;
+                break;
         }
     }
 

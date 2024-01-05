@@ -109,6 +109,18 @@ export default class Scene {
         }
         return false;
     }
+    getCube(x, z) {
+        var _a;
+        if (x >= 0 && x < this.globalState.divisionFactor && z >= 0 && z < this.globalState.divisionFactor) {
+            let cubeKey = this.getCubeString(x, z);
+            if (this.cubeLayer.has(cubeKey)) {
+                let cubeColor = (_a = this.cubeLayer.get(cubeKey)) === null || _a === void 0 ? void 0 : _a.color;
+                if (cubeColor != undefined)
+                    return cubeColor;
+            }
+        }
+        return null;
+    }
     toggleSun() {
         this.sunOn = !this.sunOn;
         this.sun.color = this.sunOn ? vec3.fromValues(1, 1, 1) : vec3.fromValues(0.1, 0.1, 0.1);
